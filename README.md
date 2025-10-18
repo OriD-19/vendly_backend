@@ -16,12 +16,16 @@ To run the project locally, follow these steps:
    pip install -r requirements.txt
    ```
 4. Set up the environment variables as needed (refer to `.env.example` for guidance).
-5. Start the FastAPI server:
+5. Activate virtual environment:
    ```bash
-   uvicorn main:app --reload
+   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   ```
+6. Start the FastAPI server:
+   ```bash
+   python3 main.py
    ```
    or run in dev mode:
     ```bash
-    fastapi dev main.py
+    fastapi dev ./app/main.py
     ```
-6. Access the API documentation at `http://localhost:8000/docs`.
+7. Access the API documentation at `http://localhost:8000/docs`.
