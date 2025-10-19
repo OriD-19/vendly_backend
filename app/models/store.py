@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -9,6 +9,7 @@ class Store(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(80), nullable=False, unique=True)
+    owner_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
 
     # store information
     phone = Column(String(20), nullable=True)
@@ -24,3 +25,4 @@ class Store(Base):
     updated_at = Column(DateTime(), nullable=False, onupdate=datetime.now)
 
     products = relationship("Product", back_populates="store")
+    owner = relationship("User", back_populates="stores")
