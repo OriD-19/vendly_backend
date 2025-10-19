@@ -42,6 +42,9 @@ class Product(Base):
     # images
     images = relationship("ProductImage", back_populates="product")
 
+    # get all orders containing this product
+    orders = relationship("OrderProduct", back_populates="product")
+
 
 class Tag(Base):
     __tablename__ = 'tags'
