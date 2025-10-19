@@ -2,8 +2,7 @@ from enum import Enum
 from datetime import datetime
 from sqlalchemy import CheckConstraint, Column, Integer, String, DateTime, Enum as SQLEnum, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship
-
-Base = declarative_base()
+from app.database import Base
 
 
 class OrderStatus(str, Enum):
@@ -22,7 +21,8 @@ class Order(Base):
 
     customer_id = Column(Integer, ForeignKey(
         'users.id'), nullable=False, index=True)
-    customer = relationship("User", back_populates="orders", foreign_keys=[customer_id])
+    customer = relationship(
+        "User", back_populates="orders", foreign_keys=[customer_id])
 
     total_amount = Column(Integer, nullable=False)
 
@@ -44,13 +44,14 @@ class Order(Base):
     delivered_at = Column(DateTime(), nullable=True)
     canceled_at = Column(DateTime(), nullable=True)
 
-    __table_args__ = (
-        # database custom constraint because we like consistency :)
-        CheckConstraint(
-            "customer_id IN (SELECT id FROM users WHERE user_type = 'customer')",
-            name='chk_order_customer_valid'
-        ),
-    )
+    # __table_args__ = (
+    #     # database custom constraint because we like consistency :)
+    #     CheckConstraint(
+    #         "customer_id IN (SELECT id FROM users WHERE user_type = 'customer')",
+    #         name='chk_order_customer_valid'
+    #     ),
+    # )
+
 
 class OrderProduct(Base):
     __tablename__ = 'order_products'

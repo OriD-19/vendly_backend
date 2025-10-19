@@ -1,8 +1,8 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm import declarative_base, relationship
+from app.database import Base
 
-Base = declarative_base()
 
 class Category(Base):
     __tablename__ = 'categories'

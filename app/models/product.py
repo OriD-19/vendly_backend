@@ -2,8 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boo
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
-
-Base = declarative_base()
+from app.database import Base
 
 
 class Product(Base):
@@ -22,7 +21,7 @@ class Product(Base):
 
     # specifications as JSON object
     # in the frontend, this should be a dynamic form allowing key-value pairs
-    specifications = Column(JSONB, nullable=True)
+    # specifications = Column(JSONB, nullable=True)
 
     created_at = Column(DateTime(), nullable=False, default=datetime.now)
     updated_at = Column(DateTime(), nullable=False, onupdate=datetime.now)
@@ -71,7 +70,7 @@ class ProductImage(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
-    # url to the image stored in s3 
+    # url to the image stored in s3
     image_url = Column(String(255), nullable=False)
 
     created_at = Column(DateTime(), nullable=False, default=datetime.now)

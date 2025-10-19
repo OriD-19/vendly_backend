@@ -2,8 +2,7 @@ from datetime import datetime
 from enum import Enum
 from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean, Enum as SQLEnum
 from sqlalchemy.orm import declarative_base, relationship
-
-Base = declarative_base()
+from app.database import Base
 
 
 class UserType(str, Enum):
