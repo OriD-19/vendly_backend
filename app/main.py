@@ -1,12 +1,8 @@
 from enum import Enum
 from fastapi import FastAPI
+from app.database import get_db, Base, engine
 
-
-class ModelName(str, Enum):
-    alexnet = "alexnet"
-    resnet = "resnet"
-    lenet = "lenet"
-
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
