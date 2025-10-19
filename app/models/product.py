@@ -1,79 +1,74 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean
-from sqlalchemy.orm import relationship, declarative_base
-from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
+from typing import List
+from sqlalchemy import String, Float, ForeignKey, DateTime, Boolean
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
 class Product(Base):
     __tablename__ = 'products'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
 
     # product details
-    name = Column(String(80), nullable=False)
-    short_description = Column(String(255), nullable=True)
-    long_description = Column(String(1000), nullable=True)
+    name: Mapped[str] = mapped_column(String(80))
+    short_description: Mapped[str | None] = mapped_column(String(255), default=None)
+    long_description: Mapped[str | None] = mapped_column(String(1000), default=None)
 
-    price = Column(Float, nullable=False)
-    stock = Column(Integer, nullable=False)
-    is_active = Column(Boolean, nullable=False, default=True)
+    price: Mapped[float] = mapped_column(Float)
+    stock: Mapped[int] = mapped_column()
+    is_active: Mapped[bool] = mapped_column(default=True)
 
-    # specifications as JSON object
-    # in the frontend, this should be a dynamic form allowing key-value pairs
-    # specifications = Column(JSONB, nullable=True)
-
-    created_at = Column(DateTime(), nullable=False, default=datetime.now)
-    updated_at = Column(DateTime(), nullable=False, onupdate=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     # store relationship
-    store_id = Column(Integer, ForeignKey('stores.id'), nullable=False)
-    store = relationship("Store", back_populates="products")
+    store_id: Mapped[int] = mapped_column(ForeignKey('stores.id'))
+    store: Mapped["Store"] = relationship("Store", back_populates="products") # type: ignore
 
     # category relationship
-    category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
-    category = relationship("Category", back_populates="products")
+    category_id: Mapped[int] = mapped_column(ForeignKey('categories.id'))
+    category: Mapped["Category"] = relationship("Category", back_populates="products") # type: ignore
 
     # tags relationship
-    tags = relationship("Tag", secondary="product_tags",
-                        back_populates="products")
+    tags: Mapped[List["Tag"]] = relationship("Tag", secondary="product_tags", back_populates="products")
 
     # images
-    images = relationship("ProductImage", back_populates="product")
+    images: Mapped[List["ProductImage"]] = relationship("ProductImage", back_populates="product")
 
     # get all orders containing this product
-    orders = relationship("OrderProduct", back_populates="product")
+    orders: Mapped[List["OrderProduct"]] = relationship("OrderProduct", back_populates="product") # type: ignore
 
 
 class Tag(Base):
     __tablename__ = 'tags'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(50), nullable=False, unique=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), unique=True)
 
-    created_at = Column(DateTime(), nullable=False, default=datetime.now)
-    updated_at = Column(DateTime(), nullable=False, onupdate=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    products = relationship(
+    products: Mapped[List["Product"]] = relationship(
         "Product", secondary="product_tags", back_populates="tags")
 
 
 class ProductTag(Base):
     __tablename__ = 'product_tags'
 
-    product_id = Column(Integer, ForeignKey('products.id'), primary_key=True)
-    tag_id = Column(Integer, ForeignKey('tags.id'), primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey('products.id'), primary_key=True)
+    tag_id: Mapped[int] = mapped_column(ForeignKey('tags.id'), primary_key=True)
 
 
 class ProductImage(Base):
     __tablename__ = 'product_images'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey('products.id'))
     # url to the image stored in s3
-    image_url = Column(String(255), nullable=False)
+    image_url: Mapped[str] = mapped_column(String(255))
 
-    created_at = Column(DateTime(), nullable=False, default=datetime.now)
-    updated_at = Column(DateTime(), nullable=False, onupdate=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    product = relationship("Product", back_populates="images")
+    product: Mapped["Product"] = relationship("Product", back_populates="images")

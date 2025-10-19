@@ -1,7 +1,8 @@
 from enum import Enum
 from datetime import datetime
-from sqlalchemy import CheckConstraint, Column, Integer, String, DateTime, Enum as SQLEnum, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship
+from typing import List, Optional
+from sqlalchemy import String, DateTime, Enum as SQLEnum, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
@@ -16,33 +17,32 @@ class OrderStatus(str, Enum):
 class Order(Base):
     __tablename__ = 'orders'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    order_number = Column(String(50), nullable=False, unique=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_number: Mapped[str] = mapped_column(String(50), unique=True)
 
-    customer_id = Column(Integer, ForeignKey(
-        'users.id'), nullable=False, index=True)
-    customer = relationship(
-        "User", back_populates="orders", foreign_keys=[customer_id])
+    customer_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    customer: Mapped["User"] = relationship( # type: ignore
+        "User", back_populates="orders", foreign_keys=[customer_id]
+    )
 
-    total_amount = Column(Integer, nullable=False)
+    total_amount: Mapped[int] = mapped_column()
 
     # all products for this order
-    products = relationship("OrderProduct", back_populates="order")
+    products: Mapped[List["OrderProduct"]] = relationship("OrderProduct", back_populates="order")
 
-    status = Column(SQLEnum(OrderStatus), nullable=False,
-                    default=OrderStatus.PENDING)
+    status: Mapped[OrderStatus] = mapped_column(SQLEnum(OrderStatus), default=OrderStatus.PENDING)
 
-    created_at = Column(DateTime(), nullable=False, default=datetime.now)
-    updated_at = Column(DateTime(), nullable=False, onupdate=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     # shipping information
-    shipping_address = Column(String(255), nullable=False)
-    shipping_city = Column(String(100), nullable=False)
-    shipping_postal_code = Column(String(20), nullable=False)
-    shipping_country = Column(String(100), nullable=False)
-    shipped_at = Column(DateTime(), nullable=True)
-    delivered_at = Column(DateTime(), nullable=True)
-    canceled_at = Column(DateTime(), nullable=True)
+    shipping_address: Mapped[str] = mapped_column(String(255))
+    shipping_city: Mapped[str] = mapped_column(String(100))
+    shipping_postal_code: Mapped[str] = mapped_column(String(20))
+    shipping_country: Mapped[str] = mapped_column(String(100))
+    shipped_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=None)
+    delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=None)
+    canceled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=None)
 
     # __table_args__ = (
     #     # database custom constraint because we like consistency :)
@@ -56,13 +56,13 @@ class Order(Base):
 class OrderProduct(Base):
     __tablename__ = 'order_products'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
 
-    order_id = Column(Integer, ForeignKey('orders.id'), nullable=False)
-    order = relationship("Order", back_populates="products")
+    order_id: Mapped[int] = mapped_column(ForeignKey('orders.id'))
+    order: Mapped["Order"] = relationship("Order", back_populates="products")
 
-    product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
-    product = relationship("Product")
+    product_id: Mapped[int] = mapped_column(ForeignKey('products.id'))
+    product: Mapped["Product"] = relationship("Product") # type: ignore
 
-    quantity = Column(Integer, nullable=False)
-    unit_price = Column(Integer, nullable=False)  # price at the time of order
+    quantity: Mapped[int] = mapped_column()
+    unit_price: Mapped[int] = mapped_column()  # price at the time of order

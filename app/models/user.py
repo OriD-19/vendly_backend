@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean, Enum as SQLEnum
-from sqlalchemy.orm import declarative_base, relationship
+from typing import Optional
+from sqlalchemy import String, DateTime, Boolean, Enum as SQLEnum, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
@@ -19,20 +20,21 @@ class PaymentMethod(str, Enum):
 class User(Base):
     __tablename__ = 'users'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(80), nullable=False, unique=True)
-    email = Column(String(120), nullable=False, unique=True)
-    password_hash = Column(String(128), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True)
+    email: Mapped[str] = mapped_column(String(120), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(128))
 
     # differentiate between customer and store owner
-    user_type = Column(SQLEnum(UserType), nullable=False,
-                       default=UserType.CUSTOMER)
+    user_type: Mapped[UserType] = mapped_column(
+        SQLEnum(UserType), default=UserType.CUSTOMER
+    )
 
-    created_at = Column(DateTime(), nullable=False, default=datetime.now)
-    updated_at = Column(DateTime(), nullable=False, onupdate=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     # relationships
-    preferences = relationship(
+    preferences: Mapped[Optional["UserPreferences"]] = relationship(
         "UserPreferences", back_populates="user", uselist=False)
 
     __mapper_args__ = {
@@ -46,8 +48,10 @@ class Customer(User):
         'polymorphic_identity': UserType.CUSTOMER,
     }
 
-    phone = Column(String(20), nullable=True)
-    preferred_payment_method = Column(SQLEnum(PaymentMethod), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), default=None)
+    preferred_payment_method: Mapped[Optional[PaymentMethod]] = mapped_column(
+        SQLEnum(PaymentMethod), default=None
+    )
 
 
 class StoreOwner(User):
@@ -55,27 +59,27 @@ class StoreOwner(User):
         'polymorphic_identity': UserType.STORE,
     }
 
-    store_id = Column(Integer, ForeignKey('stores.id'), nullable=True)
-    store = relationship("Store", back_populates="owner")
+    store_id: Mapped[Optional[int]] = mapped_column(ForeignKey('stores.id'), default=None)
+    store: Mapped[Optional["Store"]] = relationship("Store", back_populates="owner") # type: ignore
     # expressed as a percentage
-    commission_rate = Column(Integer, nullable=False, default=5)
+    commission_rate: Mapped[int] = mapped_column(default=5)
 
 
 class UserPreferences(Base):
     __tablename__ = 'user_preferences'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False, unique=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), unique=True)
 
     # preference fields
-    theme = Column(String(50), nullable=False, default='light')
-    notifications_enabled = Column(Boolean, nullable=False, default=True)
-    email_alerts = Column(Boolean, nullable=False, default=True)
-    timezone = Column(String(50), nullable=False, default='UTC')
-    language = Column(String(50), nullable=False, default='en')
-    currency = Column(String(10), nullable=False, default='USD')
+    theme: Mapped[str] = mapped_column(String(50), default='light')
+    notifications_enabled: Mapped[bool] = mapped_column(default=True)
+    email_alerts: Mapped[bool] = mapped_column(default=True)
+    timezone: Mapped[str] = mapped_column(String(50), default='UTC')
+    language: Mapped[str] = mapped_column(String(50), default='en')
+    currency: Mapped[str] = mapped_column(String(10), default='USD')
 
-    created_at = Column(DateTime(), nullable=False, default=datetime.now)
-    updated_at = Column(DateTime(), nullable=False, onupdate=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    user = relationship("User", back_populates="preferences")
+    user: Mapped["User"] = relationship("User", back_populates="preferences")
