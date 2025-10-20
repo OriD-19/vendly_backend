@@ -23,7 +23,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(80), unique=True)
     email: Mapped[str] = mapped_column(String(120), unique=True)
-    password_hash: Mapped[str] = mapped_column(String(128))
+    password_hash: Mapped[str] = mapped_column(String(255))
 
     # differentiate between customer and store owner
     user_type: Mapped[UserType] = mapped_column(
@@ -37,6 +37,8 @@ class User(Base):
     preferences: Mapped[Optional["UserPreferences"]] = relationship(
         "UserPreferences", back_populates="user", uselist=False)
     chat_messages: Mapped[List["ChatMessage"]] = relationship("ChatMessage", back_populates="sender") #type: ignore
+    orders: Mapped[List["Order"]] = relationship("Order", back_populates="customer") #type: ignore
+    store: Mapped[Optional["Store"]] = relationship("Store", back_populates="owner", foreign_keys="Store.owner_id") #type: ignore
 
     __mapper_args__ = {
         'polymorphic_on': user_type,
@@ -61,7 +63,6 @@ class StoreOwner(User):
     }
 
     store_id: Mapped[Optional[int]] = mapped_column(ForeignKey('stores.id'), default=None)
-    store: Mapped[Optional["Store"]] = relationship("Store", back_populates="owner") # type: ignore
     # expressed as a percentage
     commission_rate: Mapped[int] = mapped_column(default=5)
 

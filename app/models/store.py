@@ -26,5 +26,5 @@ class Store(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     products: Mapped[List["Product"]] = relationship("Product", back_populates="store") # type: ignore
-    owner: Mapped["User"] = relationship("User", back_populates="stores") # type: ignore
+    owner: Mapped["User"] = relationship("User", back_populates="store", foreign_keys=[owner_id]) # type: ignore
     chat_messages: Mapped[List["ChatMessage"]] = relationship("ChatMessage", back_populates="store") # type: ignore
