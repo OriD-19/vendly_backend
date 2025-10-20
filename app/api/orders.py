@@ -11,6 +11,7 @@ from app.models.order import Order, OrderStatus, OrderProduct
 from app.models.product import Product
 from app.models.user import User
 from app.utils.auth_dependencies import get_current_active_user
+from app.services.store import StoreService
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -479,3 +480,63 @@ def export_store_order_history(
             'Content-Disposition': f'attachment; filename=store_{store_id}_order_history_{start_date.date()}_{end_date.date()}.xlsx'
         }
     )
+
+
+@router.get("/sales-performance/{store_id}")
+def get_sales_performance(
+    store_id: int,
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get comprehensive sales performance data for a store.
+    
+    Returns:
+    - Daily sales data for the last 30 days
+    - Best day sales
+    - Average daily sales
+    - Total orders
+    
+    Parameters:
+    - store_id: ID of the store
+    - start_date: Optional start date (defaults to 30 days ago)
+    - end_date: Optional end date (defaults to today)
+    """
+    order_service = OrderService(db)
+    
+    # Verify store ownership (optional, can be adjusted based on requirements)
+    store_service = StoreService(db)
+    store_service.verify_store_ownership(store_id, current_user.id)
+    
+    return order_service.get_sales_performance(store_id, start_date, end_date)
+
+
+@router.get("/growth-metrics/{store_id}")
+def get_growth_metrics(
+    store_id: int,
+    period: str = Query("month", regex="^(week|month|quarter|year)$"),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get comprehensive growth metrics for a store.
+    
+    Returns:
+    - Monthly Sales Growth
+    - Customer Growth
+    - Average Order Value (AOV) Growth
+    - Customer Retention Improvement
+    
+    Parameters:
+    - store_id: ID of the store
+    - period: Time period for comparison (week, month, quarter, year)
+    """
+    order_service = OrderService(db)
+    
+    # Verify store ownership (optional, can be adjusted based on requirements)
+    store_service = StoreService(db)
+    store_service.verify_store_ownership(store_id, current_user.id)
+    
+    return order_service.get_growth_metrics(store_id, period)

@@ -854,6 +854,256 @@ class OrderService:
             "conversion": self.get_conversion_rate(store_id, start_date, end_date, period)
         }
     
+    def get_sales_performance(
+        self,
+        store_id: int,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> Dict[str, Any]:
+        """
+        Get comprehensive sales performance data for a store.
+        
+        Returns:
+        - Daily sales data
+        - Best day sales
+        - Average daily sales
+        - Total orders
+        
+        Args:
+            store_id: ID of the store
+            start_date: Start date for performance (defaults to 30 days ago)
+            end_date: End date for performance (defaults to today)
+        """
+        # Set date range
+        if not end_date:
+            end_date = datetime.utcnow()
+        if not start_date:
+            start_date = end_date - timedelta(days=30)
+        
+        # Daily sales query
+        daily_sales = (
+            self.db.query(
+                func.date(Order.created_at).label('sale_date'),
+                func.sum(Order.total_amount).label('daily_total')
+            )
+            .join(OrderProduct, Order.id == OrderProduct.order_id)
+            .join(Product, OrderProduct.product_id == Product.id)
+            .filter(
+                Product.store_id == store_id,
+                Order.status != OrderStatus.CANCELED,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date
+            )
+            .group_by(func.date(Order.created_at))
+            .order_by(func.date(Order.created_at))
+            .all()
+        )
+        
+        # Convert to list of dictionaries for easier handling
+        daily_sales_data = [
+            {
+                'date': sale.sale_date, 
+                'total': float(sale.daily_total)
+            } for sale in daily_sales
+        ]
+        
+        # Calculate metrics
+        total_sales = sum(day['total'] for day in daily_sales_data)
+        avg_daily_sales = total_sales / len(daily_sales_data) if daily_sales_data else 0
+        
+        # Find best day
+        best_day = max(daily_sales_data, key=lambda x: x['total']) if daily_sales_data else None
+        
+        # Total orders
+        total_orders = (
+            self.db.query(func.count(func.distinct(Order.id)))
+            .join(OrderProduct, Order.id == OrderProduct.order_id)
+            .join(Product, OrderProduct.product_id == Product.id)
+            .filter(
+                Product.store_id == store_id,
+                Order.status != OrderStatus.CANCELED,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date
+            )
+            .scalar()
+        ) or 0
+        
+        return {
+            "store_id": store_id,
+            "daily_sales": daily_sales_data,
+            "best_day": {
+                "date": best_day['date'] if best_day else None,
+                "total": best_day['total'] if best_day else 0
+            },
+            "avg_daily_sales": round(avg_daily_sales, 2),
+            "total_orders": total_orders,
+            "start_date": start_date,
+            "end_date": end_date,
+            "currency": "USD"
+        }
+    
+    def get_growth_metrics(
+        self,
+        store_id: int,
+        period: str = "month"
+    ) -> Dict[str, Any]:
+        """
+        Calculate comprehensive growth metrics for a store.
+        
+        Metrics:
+        - Monthly Sales Growth
+        - Customer Growth
+        - Average Order Value (AOV) Growth
+        - Customer Retention Improvement
+        
+        Args:
+            store_id: ID of the store
+            period: Time period for comparison (default: month)
+        
+        Returns:
+            Dictionary with growth metrics
+        """
+        # Current period dates
+        end_date = datetime.utcnow()
+        start_date = self._get_period_start_date(period, end_date)
+        
+        # Previous period dates
+        prev_end_date = start_date - timedelta(days=1)
+        prev_start_date = self._get_period_start_date(period, prev_end_date)
+        
+        # Current period metrics
+        current_sales = (
+            self.db.query(func.sum(Order.total_amount))
+            .join(OrderProduct, Order.id == OrderProduct.order_id)
+            .join(Product, OrderProduct.product_id == Product.id)
+            .filter(
+                Product.store_id == store_id,
+                Order.status != OrderStatus.CANCELED,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date
+            )
+            .scalar() or 0
+        )
+        
+        # Previous period metrics
+        previous_sales = (
+            self.db.query(func.sum(Order.total_amount))
+            .join(OrderProduct, Order.id == OrderProduct.order_id)
+            .join(Product, OrderProduct.product_id == Product.id)
+            .filter(
+                Product.store_id == store_id,
+                Order.status != OrderStatus.CANCELED,
+                Order.created_at >= prev_start_date,
+                Order.created_at <= prev_end_date
+            )
+            .scalar() or 0
+        )
+        
+        # Customer metrics
+        current_customers = (
+            self.db.query(func.count(func.distinct(Order.customer_id)))
+            .join(OrderProduct, Order.id == OrderProduct.order_id)
+            .join(Product, OrderProduct.product_id == Product.id)
+            .filter(
+                Product.store_id == store_id,
+                Order.status != OrderStatus.CANCELED,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date
+            )
+            .scalar() or 0
+        )
+        
+        previous_customers = (
+            self.db.query(func.count(func.distinct(Order.customer_id)))
+            .join(OrderProduct, Order.id == OrderProduct.order_id)
+            .join(Product, OrderProduct.product_id == Product.id)
+            .filter(
+                Product.store_id == store_id,
+                Order.status != OrderStatus.CANCELED,
+                Order.created_at >= prev_start_date,
+                Order.created_at <= prev_end_date
+            )
+            .scalar() or 0
+        )
+        
+        # Average Order Value (AOV) metrics
+        current_aov = (
+            self.db.query(func.avg(Order.total_amount))
+            .join(OrderProduct, Order.id == OrderProduct.order_id)
+            .join(Product, OrderProduct.product_id == Product.id)
+            .filter(
+                Product.store_id == store_id,
+                Order.status != OrderStatus.CANCELED,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date
+            )
+            .scalar() or 0
+        )
+        
+        previous_aov = (
+            self.db.query(func.avg(Order.total_amount))
+            .join(OrderProduct, Order.id == OrderProduct.order_id)
+            .join(Product, OrderProduct.product_id == Product.id)
+            .filter(
+                Product.store_id == store_id,
+                Order.status != OrderStatus.CANCELED,
+                Order.created_at >= prev_start_date,
+                Order.created_at <= prev_end_date
+            )
+            .scalar() or 0
+        )
+        
+        # Retention calculation (repeat customers)
+        repeat_customers = (
+            self.db.query(func.count(func.distinct(Order.customer_id)))
+            .join(OrderProduct, Order.id == OrderProduct.order_id)
+            .join(Product, OrderProduct.product_id == Product.id)
+            .filter(
+                Product.store_id == store_id,
+                Order.status != OrderStatus.CANCELED,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
+                # Customer has more than one order in the current period
+                func.count(func.distinct(Order.id)) > 1
+            )
+            .group_by(Order.customer_id)
+            .having(func.count(func.distinct(Order.id)) > 1)
+            .count()
+        )
+        
+        # Calculate growth percentages
+        monthly_growth = (
+            (current_sales - previous_sales) / previous_sales * 100 
+            if previous_sales > 0 else 0
+        )
+        
+        customer_growth = (
+            (current_customers - previous_customers) / previous_customers * 100 
+            if previous_customers > 0 else 0
+        )
+        
+        aov_growth = (
+            (current_aov - previous_aov) / previous_aov * 100 
+            if previous_aov > 0 else 0
+        )
+        
+        retention_improvement = (
+            (repeat_customers / current_customers * 100) 
+            if current_customers > 0 else 0
+        )
+        
+        return {
+            "store_id": store_id,
+            "monthly_growth": round(monthly_growth, 1),
+            "customer_growth": round(customer_growth, 1),
+            "aov_growth": round(aov_growth, 1),
+            "retention_improvement": round(retention_improvement, 1),
+            "period": period,
+            "start_date": start_date,
+            "end_date": end_date,
+            "currency": "USD"
+        }
+    
     # ========== Utility Methods ==========
     
     def _generate_order_number(self) -> str:
