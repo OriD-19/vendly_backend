@@ -11,7 +11,7 @@ from app.models.order import Order, OrderStatus, OrderProduct
 from app.models.product import Product
 from app.models.user import User
 from app.utils.auth_dependencies import get_current_active_user
-from app.services.store import StoreService
+from app.services.store_service import StoreService
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 

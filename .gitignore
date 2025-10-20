@@ -53,3 +53,5 @@ coverage.xml
 docs/_build/
 
 .env
+seed_database.py
+seed_data.sql
