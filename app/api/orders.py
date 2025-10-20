@@ -1,13 +1,16 @@
 from typing import List, Optional
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from datetime import datetime, timedelta
+import io
+import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.order import OrderCreate, OrderUpdate, OrderResponse
 from app.services.order import OrderService
-from app.models.order import OrderStatus
-from app.utils.auth_dependencies import get_current_active_user
+from app.models.order import Order, OrderStatus, OrderProduct
+from app.models.product import Product
 from app.models.user import User
+from app.utils.auth_dependencies import get_current_active_user
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -396,3 +399,83 @@ def get_dashboard_analytics(
     # TODO: Add store owner authorization check
     order_service = OrderService(db)
     return order_service.get_dashboard_analytics(store_id, start_date, end_date, period)
+
+
+@router.get("/export/{store_id}", response_class=Response)
+def export_store_order_history(
+    store_id: int,
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Export store order history to Excel.
+    
+    Parameters:
+    - store_id: ID of the store
+    - start_date: Optional start date for filtering orders
+    - end_date: Optional end date for filtering orders
+    
+    Returns:
+    - Excel file with order history
+    """
+    order_service = OrderService(db)
+    
+    # If no dates provided, default to last 30 days
+    if not end_date:
+        end_date = datetime.utcnow()
+    if not start_date:
+        start_date = end_date - timedelta(days=30)
+    
+    # Get all orders for the store within the date range
+    query = db.query(Order, OrderProduct, Product, User)\
+        .join(OrderProduct, Order.id == OrderProduct.order_id)\
+        .join(Product, OrderProduct.product_id == Product.id)\
+        .join(User, Order.customer_id == User.id)\
+        .filter(
+            Product.store_id == store_id,
+            Order.created_at >= start_date,
+            Order.created_at <= end_date
+        )
+    
+    # Execute query
+    results = query.all()
+    
+    # Prepare data for DataFrame
+    order_data = []
+    for order, order_product, product, customer in results:
+        order_data.append({
+            'Order Number': order.order_number,
+            'Order Date': order.created_at,
+            'Customer Name': customer.username,
+            'Customer Email': customer.email,
+            'Product Name': product.name,
+            'Product Quantity': order_product.quantity,
+            'Unit Price': order_product.unit_price,
+            'Total Product Price': order_product.quantity * order_product.unit_price,
+            'Order Total': order.total_amount,
+            'Order Status': order.status.value,
+            'Shipping Address': order.shipping_address,
+            'Shipping City': order.shipping_city,
+            'Shipping Postal Code': order.shipping_postal_code,
+            'Shipping Country': order.shipping_country
+        })
+    
+    # Create DataFrame
+    df = pd.DataFrame(order_data)
+    
+    # Create Excel file in memory
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Order History', index=False)
+    
+    output.seek(0)
+    
+    return Response(
+        content=output.getvalue(), 
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={
+            'Content-Disposition': f'attachment; filename=store_{store_id}_order_history_{start_date.date()}_{end_date.date()}.xlsx'
+        }
+    )
