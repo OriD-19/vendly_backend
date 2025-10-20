@@ -68,9 +68,9 @@ class AuthService:
         """
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.now() + expires_delta
+            expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.now() + timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
+            expire = datetime.utcnow() + timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
         
         to_encode.update({
             "exp": expire,
@@ -87,9 +87,9 @@ class AuthService:
         """
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.now() + expires_delta
+            expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.now() + timedelta(days=Config.REFRESH_TOKEN_EXPIRE_DAYS)
+            expire = datetime.utcnow() + timedelta(days=Config.REFRESH_TOKEN_EXPIRE_DAYS)
         
         to_encode.update({
             "exp": expire,
@@ -133,11 +133,7 @@ class AuthService:
             if payload.get("type") != token_type:
                 return None
             
-            # Check if token has expired
-            exp = payload.get("exp")
-            if exp and datetime.utcnow() > datetime.fromtimestamp(exp):
-                return None
-            
+            # jwt.decode() already validates expiration, no need for manual check
             return payload
         except JWTError:
             return None
