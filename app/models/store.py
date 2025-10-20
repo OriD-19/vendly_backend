@@ -27,3 +27,4 @@ class Store(Base):
 
     products: Mapped[List["Product"]] = relationship("Product", back_populates="store") # type: ignore
     owner: Mapped["User"] = relationship("User", back_populates="stores") # type: ignore
+    chat_messages: Mapped[List["ChatMessage"]] = relationship("ChatMessage", back_populates="store") # type: ignore

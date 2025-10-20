@@ -6,10 +6,12 @@ from app.models.store import Store
 from app.models.category import Category
 from app.models.product import Product, Tag, ProductTag, ProductImage
 from app.models.order import Order, OrderProduct
+from app.models.chat_message import ChatMessage
 
 # Import routers
 from app.api.auth import router as auth_router
 from app.api.users import router as users_router
+from app.api.chat import router as chat_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -22,6 +24,7 @@ app = FastAPI(
 # Include routers
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(chat_router)
 
 
 @app.get("/")

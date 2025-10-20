@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy import String, DateTime, Boolean, Enum as SQLEnum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
@@ -36,6 +36,7 @@ class User(Base):
     # relationships
     preferences: Mapped[Optional["UserPreferences"]] = relationship(
         "UserPreferences", back_populates="user", uselist=False)
+    chat_messages: Mapped[List["ChatMessage"]] = relationship("ChatMessage", back_populates="sender") #type: ignore
 
     __mapper_args__ = {
         'polymorphic_on': user_type,
