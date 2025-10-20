@@ -16,6 +16,7 @@ class Product(Base):
     long_description: Mapped[str | None] = mapped_column(String(1000), default=None)
 
     price: Mapped[float] = mapped_column(Float)
+    production_cost: Mapped[float] = mapped_column(Float, default=0.0)  # Cost to produce/acquire the product
     stock: Mapped[int] = mapped_column()
     is_active: Mapped[bool] = mapped_column(default=True)
 
