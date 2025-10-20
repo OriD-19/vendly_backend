@@ -5,6 +5,7 @@ from app.services.auth_service import AuthService
 from app.schemas.auth import LoginRequest, TokenResponse, RefreshTokenRequest, AccessTokenResponse
 from app.schemas.user import UserCreate, UserResponse
 from app.models.user import User
+from app.utils.auth_dependencies import get_current_active_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -94,10 +95,48 @@ def refresh_token(refresh_data: RefreshTokenRequest, db: Session = Depends(get_d
 
 
 @router.post("/logout")
-def logout():
+def logout(current_user: User = Depends(get_current_active_user)):
     """
     Logout endpoint.
     In a stateless JWT system, logout is handled client-side by deleting tokens.
     This endpoint exists for consistency and can be extended with token blacklisting.
+    
+    Requires authentication to ensure only authenticated users can logout.
     """
-    return {"message": "Successfully logged out. Please delete your tokens."}
+    return {
+        "message": "Successfully logged out. Please delete your tokens.",
+        "username": current_user.username
+    }
+
+
+@router.post("/verify-token")
+def verify_token(current_user: User = Depends(get_current_active_user)):
+    """
+    Verify if the provided access token is valid.
+    Returns user information if token is valid.
+    
+    Useful for:
+    - Client-side token validation
+    - Checking if user is still authenticated
+    - Getting current user info without dedicated endpoint
+    """
+    return {
+        "valid": True,
+        "user": {
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": current_user.email,
+            "user_type": current_user.user_type
+        }
+    }
+
+
+@router.get("/me", response_model=UserResponse)
+def get_current_user_profile(current_user: User = Depends(get_current_active_user)):
+    """
+    Get the current authenticated user's profile.
+    Alternative to /users/me endpoint.
+    
+    Returns full user information for the authenticated user.
+    """
+    return current_user
