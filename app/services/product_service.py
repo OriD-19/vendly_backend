@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 from app.models.product import Product, Tag, ProductImage, ProductTag
 from app.models.category import Category
 from app.models.store import Store
-from app.schemas.product import ProductCreate, ProductUpdate
+from app.schemas.product import ProductCreate, ProductUpdate, TagCreate, TagUpdate
 
 
 class ProductService:
@@ -228,6 +228,20 @@ class ProductService:
         
         return product
     
+    def increment_stock(self, product_id: int, amount: int) -> Product:
+        """
+        Increment product stock by a specific amount.
+        Convenience method for adding stock.
+        """
+        return self.update_stock(product_id, amount, "add")
+    
+    def decrement_stock(self, product_id: int, amount: int) -> Product:
+        """
+        Decrement product stock by a specific amount.
+        Raises error if result would be negative.
+        """
+        return self.update_stock(product_id, amount, "subtract")
+    
     # ========== Product Image Operations ==========
     
     def add_product_image(self, product_id: int, image_url: str) -> ProductImage:
@@ -277,30 +291,36 @@ class ProductService:
     
     # ========== Tag Operations ==========
     
-    def create_tag(self, tag_name: str) -> Tag:
+    def create_tag(self, tag_data: TagCreate) -> Tag:
         """
         Create a new tag.
         """
         # Check if tag already exists
-        existing_tag = self.db.query(Tag).filter(Tag.name == tag_name).first()
+        existing_tag = self.db.query(Tag).filter(Tag.name == tag_data.name).first()
         if existing_tag:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Tag '{tag_name}' already exists"
+                detail=f"Tag '{tag_data.name}' already exists"
             )
         
-        new_tag = Tag(name=tag_name)
+        new_tag = Tag(name=tag_data.name)
         self.db.add(new_tag)
         self.db.commit()
         self.db.refresh(new_tag)
         
         return new_tag
     
-    def get_all_tags(self) -> List[Tag]:
+    def get_all_tags(self, skip: int = 0, limit: int = 100, search: Optional[str] = None) -> List[Tag]:
         """
-        Get all available tags.
+        Get all available tags with optional search and pagination.
         """
-        return self.db.query(Tag).all()
+        query = self.db.query(Tag)
+        
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.filter(Tag.name.ilike(search_pattern))
+        
+        return query.offset(skip).limit(limit).all()
     
     def get_tag_by_id(self, tag_id: int) -> Tag:
         """
@@ -313,6 +333,31 @@ class ProductService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Tag with id {tag_id} not found"
             )
+        return tag
+    
+    def update_tag(self, tag_id: int, tag_data: TagUpdate) -> Tag:
+        """
+        Update a tag's name.
+        """
+        tag = self.get_tag_by_id(tag_id)
+        
+        if tag_data.name:
+            # Check if new name already exists
+            existing_tag = self.db.query(Tag).filter(
+                Tag.name == tag_data.name,
+                Tag.id != tag_id
+            ).first()
+            if existing_tag:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Tag '{tag_data.name}' already exists"
+                )
+            
+            tag.name = tag_data.name
+        
+        self.db.commit()
+        self.db.refresh(tag)
+        
         return tag
     
     def delete_tag(self, tag_id: int) -> bool:
@@ -385,30 +430,61 @@ class ProductService:
         
         return products
     
-    def get_products_by_tag(self, tag_id: int, skip: int = 0, limit: int = 100) -> List[Product]:
+    def get_products_by_tag(self, tag_id: int, skip: int = 0, limit: int = 100, is_active: bool = True) -> List[Product]:
         """
         Get all products with a specific tag.
         """
         tag = self.get_tag_by_id(tag_id)
         
-        # Use the relationship
-        products = tag.products[skip:skip + limit]
+        # Query products with this tag
+        query = self.db.query(Product).join(ProductTag).filter(
+            ProductTag.tag_id == tag_id
+        )
+        
+        if is_active:
+            query = query.filter(Product.is_active == True)
+        
+        products = query.offset(skip).limit(limit).all()
         
         return products
     
-    def search_products(self, search_term: str, skip: int = 0, limit: int = 100) -> List[Product]:
+    def search_products(
+        self,
+        search_term: str,
+        skip: int = 0,
+        limit: int = 100,
+        category_id: Optional[int] = None,
+        min_price: Optional[float] = None,
+        max_price: Optional[float] = None,
+        in_stock: bool = False
+    ) -> List[Product]:
         """
-        Search products by name or description.
+        Search products by name or description with optional filters.
         """
         search_pattern = f"%{search_term}%"
         
-        products = self.db.query(Product).filter(
+        query = self.db.query(Product).filter(
             or_(
                 Product.name.ilike(search_pattern),
                 Product.short_description.ilike(search_pattern),
                 Product.long_description.ilike(search_pattern)
             )
-        ).offset(skip).limit(limit).all()
+        )
+        
+        # Apply additional filters
+        if category_id is not None:
+            query = query.filter(Product.category_id == category_id)
+        
+        if min_price is not None:
+            query = query.filter(Product.price >= min_price)
+        
+        if max_price is not None:
+            query = query.filter(Product.price <= max_price)
+        
+        if in_stock:
+            query = query.filter(Product.stock > 0)
+        
+        products = query.offset(skip).limit(limit).all()
         
         return products
     
