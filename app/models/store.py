@@ -1,8 +1,13 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import String, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.product import Product
+    from app.models.user import User
+    from app.models.chat_message import ChatMessage
 
 
 class Store(Base):

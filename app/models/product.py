@@ -1,8 +1,13 @@
 from datetime import datetime
-from typing import List
+from typing import List, TYPE_CHECKING
 from sqlalchemy import String, Float, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.store import Store
+    from app.models.category import Category
+    from app.models.order import OrderProduct
 
 
 class Product(Base):

@@ -1,8 +1,11 @@
 from datetime import datetime
-from typing import List
+from typing import List, TYPE_CHECKING
 from sqlalchemy import String, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.product import Product
 
 
 class Category(Base):

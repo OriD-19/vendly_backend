@@ -1,9 +1,14 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import String, DateTime, Boolean, Enum as SQLEnum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.chat_message import ChatMessage
+    from app.models.order import Order
+    from app.models.store import Store
 
 
 class UserType(str, Enum):
