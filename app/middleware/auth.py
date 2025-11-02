@@ -36,6 +36,20 @@ PUBLIC_PREFIXES = [
     "/redoc",
 ]
 
+# Specific route patterns that are public (require method + path check)
+PUBLIC_ROUTE_PATTERNS = {
+    # Store endpoints (public browsing)
+    ("GET", "/stores"),
+    ("GET", "/stores/"),
+    ("GET", "/stores/search"),
+    # Product endpoints (public browsing)
+    ("GET", "/products"),
+    ("GET", "/products/"),
+    # Categories (public browsing)
+    ("GET", "/categories"),
+    ("GET", "/categories/"),
+}
+
 
 class AuthMiddleware(BaseHTTPMiddleware):
     """
@@ -73,7 +87,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request.state.is_authenticated = False
         
         # Check if route is public
-        if self._is_public_route(request.url.path):
+        if self._is_public_route(request.method, request.url.path):
             # Public route - no auth required
             return await call_next(request)
         
@@ -156,11 +170,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
             logger.warning(f"Token verification failed: {str(e)}")
             return None
     
-    def _is_public_route(self, path: str) -> bool:
+    def _is_public_route(self, method: str, path: str) -> bool:
         """
         Check if route is public (doesn't require authentication).
         
         Args:
+            method: HTTP method (GET, POST, etc.)
             path: Request path
             
         Returns:
@@ -174,6 +189,40 @@ class AuthMiddleware(BaseHTTPMiddleware):
         for prefix in PUBLIC_PREFIXES:
             if path.startswith(prefix):
                 return True
+        
+        # Method + path pattern match (for browsing endpoints)
+        if (method, path) in PUBLIC_ROUTE_PATTERNS:
+            return True
+        
+        # Check if it's a GET request to a specific resource (e.g., /stores/123)
+        # Allow GET requests to stores and products for public browsing
+        if method == "GET":
+            # /stores/:id
+            if path.startswith("/stores/") and path.count("/") == 2:
+                # Check if it's a numeric ID (not /stores/my-store)
+                store_id = path.split("/")[2]
+                if store_id.isdigit():
+                    return True
+            
+            # /stores/:id/products (public product browsing)
+            if path.startswith("/stores/") and "/products" in path:
+                return True
+            
+            # /stores/:id/products/count
+            if path.startswith("/stores/") and path.endswith("/products/count"):
+                return True
+            
+            # /products/:id
+            if path.startswith("/products/") and path.count("/") == 2:
+                product_id = path.split("/")[2]
+                if product_id.isdigit():
+                    return True
+            
+            # /categories/:id
+            if path.startswith("/categories/") and path.count("/") == 2:
+                category_id = path.split("/")[2]
+                if category_id.isdigit():
+                    return True
         
         return False
     
