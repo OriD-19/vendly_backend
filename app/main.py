@@ -61,6 +61,6 @@ logger.info("API routers registered successfully")
 async def root():
     return {
         "message": "Welcome to Vendly API",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "docs": "/docs"
     }
