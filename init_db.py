@@ -31,7 +31,7 @@ def main():
     print("Vendly Database Initialization")
     print("=" * 60)
     print(f"\nDatabase URL: {Config.DATABASE_URL}")
-    db_type = 'PostgreSQL' if Config.DATABASE_URL and 'postgresql' in Config.DATABASE_URL else 'SQLite'
+    db_type = Config.DB_TYPE if hasattr(Config, 'DB_TYPE') else 'sqlite'
     print(f"Database Type: {db_type}")
     print()
     

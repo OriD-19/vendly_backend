@@ -1,6 +1,7 @@
 # define global properties and configuration parameters
 import os
-
+from dotenv import load_dotenv
+load_dotenv()
 
 class Config:
     DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes')
