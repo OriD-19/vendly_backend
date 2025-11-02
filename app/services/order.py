@@ -58,14 +58,15 @@ class OrderService:
                     detail=f"Insufficient stock for product '{product.name}'. Available: {product.stock}, Requested: {item.quantity}"
                 )
             
+            # Use the product's actual price from the database (security measure)
             # Store product data for order creation
             order_products_data.append({
                 'product': product,
                 'quantity': item.quantity,
-                'unit_price': item.unit_price
+                'unit_price': product.price  # Use database price, not user-provided price
             })
             
-            total_amount += item.unit_price * item.quantity
+            total_amount += product.price * item.quantity
         
         # Create order
         new_order = Order(

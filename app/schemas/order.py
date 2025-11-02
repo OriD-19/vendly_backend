@@ -12,8 +12,10 @@ class OrderProductBase(BaseModel):
     unit_price: float = Field(..., gt=0)
 
 
-class OrderProductCreate(OrderProductBase):
-    pass
+class OrderProductCreate(BaseModel):
+    """Schema for creating order products. Price is fetched from database."""
+    product_id: int
+    quantity: int = Field(..., gt=0)
 
 
 class OrderProductUpdate(BaseModel):
