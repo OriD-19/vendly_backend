@@ -38,7 +38,6 @@ class OrderBase(BaseModel):
 
 
 class OrderCreate(OrderBase):
-    customer_id: int
     products: List[OrderProductCreate] = Field(..., min_length=1)
 
 

@@ -17,13 +17,13 @@ class OrderService:
     
     # ========== CRUD Operations ==========
     
-    def create_order(self, order_data: OrderCreate) -> Order:
+    def create_order(self, order_data: OrderCreate, customer_id: int) -> Order:
         """
         Create a new order with products.
         Validates customer, products, and stock availability.
         """
         # Verify customer exists
-        customer = self.db.query(User).filter(User.id == order_data.customer_id).first()
+        customer = self.db.query(User).filter(User.id == customer_id).first()
         if not customer:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -70,7 +70,7 @@ class OrderService:
         # Create order
         new_order = Order(
             order_number=order_number,
-            customer_id=order_data.customer_id,
+            customer_id=customer_id,
             total_amount=total_amount,
             shipping_address=order_data.shipping_address,
             shipping_city=order_data.shipping_city,

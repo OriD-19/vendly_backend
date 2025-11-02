@@ -26,10 +26,19 @@ def create_order(
 ):
     """
     Create a new order.
+    The order will be created for the currently logged-in customer.
     Validates products, stock availability, and calculates total amount.
     """
+    # Validate that only customers can create orders
+    from app.models.user import UserType
+    if current_user.user_type != UserType.CUSTOMER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only customers can create orders"
+        )
+    
     order_service = OrderService(db)
-    order = order_service.create_order(order_data)
+    order = order_service.create_order(order_data, current_user.id)
     return order
 
 
