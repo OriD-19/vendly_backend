@@ -57,8 +57,10 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         
         store_service = StoreService(db)
         store_data = StoreCreate(
-            name=user_data.store_name,  # Assuming store_name is added to UserCreate
-            owner_id=new_user.id
+            name=user_data.store_name,
+            owner_id=new_user.id,
+            store_location=user_data.store_location,
+            type=user_data.type
         )
         store_service.create_store(store_data, new_user)
     
