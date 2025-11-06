@@ -14,6 +14,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
     user_type: UserType = UserType.CUSTOMER
+    store_name: Optional[str] = Field(None, min_length=1, max_length=80)
 
 
 class UserUpdate(BaseModel):
@@ -55,6 +56,7 @@ class CustomerResponse(UserResponse):
 
 class StoreOwnerCreate(UserCreate):
     user_type: UserType = UserType.STORE
+    store_name: str = Field(..., min_length=1, max_length=80)
     store_id: Optional[int] = None
     commission_rate: int = Field(default=5, ge=0, le=100)
 

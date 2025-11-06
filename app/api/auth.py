@@ -6,6 +6,7 @@ from app.schemas.auth import LoginRequest, TokenResponse, RefreshTokenRequest, A
 from app.schemas.user import UserCreate, UserResponse
 from app.models.user import User
 from app.utils.auth_dependencies import get_current_active_user
+from app.models.user import UserType
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -15,6 +16,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """
     Register a new user.
     Creates a user account with hashed password.
+    For store owners, automatically creates their store.
     """
     # Check if username already exists
     existing_user = db.query(User).filter(User.username == user_data.username).first()
@@ -47,6 +49,18 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    # If store owner, create their store
+    if new_user.user_type == UserType.STORE:
+        from app.services.store_service import StoreService
+        from app.schemas.store import StoreCreate
+        
+        store_service = StoreService(db)
+        store_data = StoreCreate(
+            name=user_data.store_name,  # Assuming store_name is added to UserCreate
+            owner_id=new_user.id
+        )
+        store_service.create_store(store_data, new_user)
     
     return new_user
 
