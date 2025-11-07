@@ -113,7 +113,7 @@ class AuthService:
         }
         
         # Add store details if user is a store owner
-        if user.user_type == UserType.STORE and user.store:
+        if user.user_type == UserType.STORE and hasattr(user, 'store') and user.store:
             token_data.update({
                 "store_id": user.store.id,
                 "store_name": user.store.name
@@ -123,17 +123,35 @@ class AuthService:
         access_token = AuthService.create_access_token(token_data)
         refresh_token = AuthService.create_refresh_token(token_data)
         
+        # Prepare user details
+        user_details = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "user_type": user.user_type
+        }
+        
+        # Add store details if available
+        if user.user_type == UserType.STORE:
+            # Try to get store details
+            try:
+                store = user.store if hasattr(user, 'store') and user.store else None
+                if store:
+                    user_details['store'] = {
+                        'id': store.id,
+                        'name': store.name,
+                        'location': store.store_location,
+                        'type': store.type
+                    }
+            except Exception:
+                # Fallback if store retrieval fails
+                user_details['store'] = None
+        
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "user_type": user.user_type,
-                "store": user.store.id if user.store else None
-            }
+            "user": user_details
         }
     
     # ========== JWT Token Verification ==========
