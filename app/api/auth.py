@@ -51,10 +51,12 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     
     # If store owner, create their store
+    store = None
     if new_user.user_type == UserType.STORE:
         from app.services.store_service import StoreService
         from app.schemas.store import StoreCreate
         from app.models.user import StoreOwner
+        from sqlalchemy.orm import joinedload
         
         store_service = StoreService(db)
         store_data = StoreCreate(
@@ -70,11 +72,26 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         if isinstance(new_user, StoreOwner):
             new_user.store_id = store.id
             db.commit()
+        
+        # Reload user with store relationship eagerly loaded
+        new_user = db.query(User).options(joinedload(User.store)).filter(User.id == new_user.id).first()
+    else:
+        # Refresh user to ensure all relationships are loaded
+        db.refresh(new_user)
     
     # Create and return tokens
-    tokens = auth_service.create_tokens(new_user)
+    tokens = auth_service.create_tokens(new_user, store)
     
-    return tokens
+    # Explicitly construct the response to ensure proper serialization
+    from app.schemas.auth import TokenResponse as TokenResponseSchema
+    response = TokenResponseSchema(
+        access_token=tokens["access_token"],
+        refresh_token=tokens["refresh_token"],
+        token_type=tokens["token_type"],
+        user=tokens["user"]
+    )
+    
+    return response
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -94,10 +111,28 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Create tokens
-    tokens = auth_service.create_tokens(user)
+    # Get store if user is a store owner and eager load it
+    store = None
+    if user.user_type == UserType.STORE:
+        from app.models.store import Store
+        from sqlalchemy.orm import joinedload
+        # Reload user with store relationship
+        user = db.query(User).options(joinedload(User.store)).filter(User.id == user.id).first()
+        store = db.query(Store).filter(Store.owner_id == user.id).first()
     
-    return tokens
+    # Create tokens
+    tokens = auth_service.create_tokens(user, store)
+    
+    # Explicitly construct the response to ensure proper serialization
+    from app.schemas.auth import TokenResponse as TokenResponseSchema
+    response = TokenResponseSchema(
+        access_token=tokens["access_token"],
+        refresh_token=tokens["refresh_token"],
+        token_type=tokens["token_type"],
+        user=tokens["user"]
+    )
+    
+    return response
 
 
 @router.post("/refresh", response_model=AccessTokenResponse)

@@ -1,4 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional
+from app.schemas.user import UserResponse
+from app.schemas.store import StoreResponse
 
 
 # ========== Authentication Schemas ==========
@@ -10,10 +13,13 @@ class LoginRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """Schema for token response (login and refresh)."""
+    """Schema for token response (login and register)."""
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    user: UserResponse
+    
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AccessTokenResponse(BaseModel):
