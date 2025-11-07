@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from app.models.user import User
+from app.models.user import User, UserType
 from app.config import Config
 
 
@@ -99,23 +99,41 @@ class AuthService:
         return encoded_jwt
     
     @staticmethod
-    def create_tokens(user_id: int, username: str) -> Dict[str, str]:
+    def create_tokens(user: User) -> Dict[str, Any]:
         """
         Create both access and refresh tokens for a user.
-        Returns a dictionary with both tokens.
+        Returns a dictionary with tokens and user details.
         """
+        # Prepare token data
         token_data = {
-            "sub": str(user_id),
-            "username": username
+            "sub": str(user.id),
+            "username": user.username,
+            "email": user.email,
+            "user_type": user.user_type
         }
         
+        # Add store details if user is a store owner
+        if user.user_type == UserType.STORE and user.store:
+            token_data.update({
+                "store_id": user.store.id,
+                "store_name": user.store.name
+            })
+        
+        # Create tokens
         access_token = AuthService.create_access_token(token_data)
         refresh_token = AuthService.create_refresh_token(token_data)
         
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "user_type": user.user_type,
+                "store": user.store.id if user.store else None
+            }
         }
     
     # ========== JWT Token Verification ==========

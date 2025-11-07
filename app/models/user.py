@@ -70,6 +70,9 @@ class StoreOwner(User):
     store_id: Mapped[Optional[int]] = mapped_column(ForeignKey('stores.id'), default=None)
     # expressed as a percentage
     commission_rate: Mapped[int] = mapped_column(default=5)
+    
+    # Add a relationship to the store
+    owned_store: Mapped[Optional["Store"]] = relationship("Store", back_populates="owner", foreign_keys=[store_id])
 
 
 class UserPreferences(Base):

@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from app.models.user import UserType, PaymentMethod
+from app.schemas.store import StoreResponse
 
 
 # ========== User Schemas ==========
@@ -17,6 +18,7 @@ class UserCreate(UserBase):
     store_name: Optional[str] = Field(None, min_length=1, max_length=80)
     store_location: Optional[str] = Field(None, max_length=120)
     type: Optional[str] = Field(None, max_length=50)
+    phone: Optional[str] = Field(None, max_length=20)
 
 
 class UserUpdate(BaseModel):
@@ -30,6 +32,7 @@ class UserResponse(UserBase):
     user_type: UserType
     created_at: datetime
     updated_at: Optional[datetime] = None
+    store: Optional[StoreResponse] = None
 
     model_config = ConfigDict(from_attributes=True)
 

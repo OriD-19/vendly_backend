@@ -11,7 +11,7 @@ from app.models.user import UserType
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """
     Register a new user.
@@ -54,17 +54,27 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     if new_user.user_type == UserType.STORE:
         from app.services.store_service import StoreService
         from app.schemas.store import StoreCreate
+        from app.models.user import StoreOwner
         
         store_service = StoreService(db)
         store_data = StoreCreate(
             name=user_data.store_name,
             owner_id=new_user.id,
             store_location=user_data.store_location,
-            type=user_data.type
+            type=user_data.type,
+            phone=user_data.phone
         )
-        store_service.create_store(store_data, new_user)
+        store = store_service.create_store(store_data, new_user)
+        
+        # Update the store owner's store_id
+        if isinstance(new_user, StoreOwner):
+            new_user.store_id = store.id
+            db.commit()
     
-    return new_user
+    # Create and return tokens
+    tokens = auth_service.create_tokens(new_user)
+    
+    return tokens
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -85,7 +95,7 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
         )
     
     # Create tokens
-    tokens = auth_service.create_tokens(user.id, user.username)
+    tokens = auth_service.create_tokens(user)
     
     return tokens
 
