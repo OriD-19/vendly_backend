@@ -411,6 +411,33 @@ def get_dashboard_analytics(
     return order_service.get_dashboard_analytics(store_id, start_date, end_date, period)
 
 
+@router.get("/analytics/summary/{store_id}")
+def get_dashboard_summary(
+    store_id: int,
+    period: str = Query("week", regex="^(week|month|quarter|year)$"),
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get simplified dashboard summary with key metrics for a store.
+    
+    Returns only the 4 main metrics:
+    - Total Revenue (profit)
+    - Total Income
+    - Total Orders
+    - Average Order Value
+    
+    Each metric includes comparison with previous period.
+    
+    Period options: week, month, quarter, year
+    """
+    # TODO: Add store owner authorization check
+    order_service = OrderService(db)
+    return order_service.get_dashboard_summary(store_id, start_date, end_date, period)
+
+
 @router.get("/export/{store_id}", response_class=Response)
 def export_store_order_history(
     store_id: int,

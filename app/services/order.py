@@ -855,6 +855,101 @@ class OrderService:
             "conversion": self.get_conversion_rate(store_id, start_date, end_date, period)
         }
     
+    def get_dashboard_summary(
+        self,
+        store_id: int,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        period: str = "week"
+    ) -> Dict[str, Any]:
+        """
+        Get simplified dashboard summary with only the 4 key metrics.
+        Each metric includes comparison with the previous period.
+        
+        Returns:
+            - total_revenue: Revenue with percentage change vs previous period
+            - total_income: Income with percentage change vs previous period
+            - total_orders: Order count with percentage change vs previous period
+            - average_order_value: AOV with percentage change vs previous period
+        """
+        # Set date range for current period
+        if not end_date:
+            end_date = datetime.utcnow()
+        
+        if not start_date:
+            start_date = self._get_period_start_date(period, end_date)
+        
+        # Calculate previous period dates
+        period_duration = end_date - start_date
+        prev_end_date = start_date
+        prev_start_date = prev_end_date - period_duration
+        
+        # Get current period metrics
+        current_revenue = self.get_total_revenue(store_id, start_date, end_date, period)
+        current_income = self.get_total_income(store_id, start_date, end_date, period)
+        current_orders = self.get_total_orders_count(store_id, start_date, end_date, period)
+        current_aov = self.get_average_order_value(store_id, start_date, end_date, period)
+        
+        # Get previous period metrics
+        prev_revenue = self.get_total_revenue(store_id, prev_start_date, prev_end_date, period)
+        prev_income = self.get_total_income(store_id, prev_start_date, prev_end_date, period)
+        prev_orders = self.get_total_orders_count(store_id, prev_start_date, prev_end_date, period)
+        prev_aov = self.get_average_order_value(store_id, prev_start_date, prev_end_date, period)
+        
+        # Calculate percentage changes
+        def calc_percentage_change(current: float, previous: float) -> float:
+            if previous == 0:
+                return 100.0 if current > 0 else 0.0
+            return round(((current - previous) / previous) * 100, 1)
+        
+        revenue_change = calc_percentage_change(
+            current_revenue.get("total_revenue", 0),
+            prev_revenue.get("total_revenue", 0)
+        )
+        
+        income_change = calc_percentage_change(
+            current_income.get("total_income", 0),
+            prev_income.get("total_income", 0)
+        )
+        
+        orders_change = calc_percentage_change(
+            current_orders.get("total_orders", 0),
+            prev_orders.get("total_orders", 0)
+        )
+        
+        aov_change = calc_percentage_change(
+            current_aov.get("average_order_value", 0),
+            prev_aov.get("average_order_value", 0)
+        )
+        
+        return {
+            "store_id": store_id,
+            "period": period,
+            "date_range": {
+                "start": start_date,
+                "end": end_date
+            },
+            "total_revenue": {
+                "value": round(current_revenue.get("total_revenue", 0), 2),
+                "change_percent": revenue_change,
+                "currency": "USD"
+            },
+            "total_income": {
+                "value": round(current_income.get("total_income", 0), 2),
+                "change_percent": income_change,
+                "currency": "USD"
+            },
+            "total_orders": {
+                "value": current_orders.get("total_orders", 0),
+                "change_percent": orders_change
+            },
+            "average_order_value": {
+                "value": round(current_aov.get("average_order_value", 0), 2),
+                "change_percent": aov_change,
+                "currency": "USD"
+            }
+        }
+    
     def get_sales_performance(
         self,
         store_id: int,
