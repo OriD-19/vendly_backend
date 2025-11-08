@@ -352,6 +352,29 @@ docker-compose exec api python
 >>> users = db.query(User).all()
 ```
 
+### Database Migrations (Alembic)
+
+We use Alembic for database schema migrations:
+
+```powershell
+# View current migration status
+.\venv\Scripts\python.exe -m alembic current
+
+# Create new migration (auto-generate from model changes)
+.\venv\Scripts\python.exe -m alembic revision --autogenerate -m "Description"
+
+# Apply migrations
+.\venv\Scripts\python.exe -m alembic upgrade head
+
+# Rollback last migration
+.\venv\Scripts\python.exe -m alembic downgrade -1
+
+# View migration history
+.\venv\Scripts\python.exe -m alembic history
+```
+
+📖 **Complete migration guide:** [ALEMBIC_GUIDE.md](ALEMBIC_GUIDE.md)
+
 ### Mock Data
 
 The seeder creates:
@@ -417,6 +440,7 @@ See [DEPLOYMENT_QUICK_REF.md](DEPLOYMENT_QUICK_REF.md) for comprehensive command
 
 ## 📚 Documentation
 
+- **[ALEMBIC_GUIDE.md](ALEMBIC_GUIDE.md)** - Database migration guide with Alembic
 - **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Complete AWS EC2 deployment guide (350+ lines)
 - **[DEPLOYMENT_QUICK_REF.md](DEPLOYMENT_QUICK_REF.md)** - Quick command reference
 - **[CI_CD_SETUP_SUMMARY.md](CI_CD_SETUP_SUMMARY.md)** - CI/CD pipeline overview
@@ -425,6 +449,7 @@ See [DEPLOYMENT_QUICK_REF.md](DEPLOYMENT_QUICK_REF.md) for comprehensive command
 - **[BULK_CATEGORIES_GUIDE.md](BULK_CATEGORIES_GUIDE.md)** - Bulk category creation guide
 - **[BULK_PRODUCTS_GUIDE.md](BULK_PRODUCTS_GUIDE.md)** - Bulk product creation guide
 - **[BULK_PRODUCTS_SUMMARY.md](BULK_PRODUCTS_SUMMARY.md)** - Quick reference for bulk products
+- **[FEATURE_PRODUCT_OFFERS.md](FEATURE_PRODUCT_OFFERS.md)** - Product offers/discounts feature guide
 - **[API Docs](http://localhost:8000/docs)** - Interactive API documentation (when running)
 
 ## 🤝 Contributing
