@@ -86,6 +86,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request.state.user_type = None
         request.state.is_authenticated = False
         
+        # Allow OPTIONS requests (CORS preflight) without authentication
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        
         # Check if route is public
         if self._is_public_route(request.method, request.url.path):
             # Public route - no auth required
