@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
@@ -32,5 +32,6 @@ class StoreResponse(StoreBase):
     owner_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    showcase_images: List[str] = Field(default_factory=list, description="URLs of latest product images for showcase")
 
     model_config = ConfigDict(from_attributes=True)

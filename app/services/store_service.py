@@ -504,3 +504,35 @@ class StoreService:
         
         count = query.scalar() or 0
         return count
+
+    def get_store_showcase_images(self, store_id: int, limit: int = 6) -> List[str]:
+        """
+        Get showcase images for a store from its latest products.
+        
+        Fetches the most recent product images to display as store showcase.
+        
+        Args:
+            store_id: The ID of the store
+            limit: Maximum number of showcase images to return (default: 6)
+            
+        Returns:
+            List of image URLs from the store's latest products
+        """
+        from app.models.product import ProductImage
+        
+        # Get latest product images from this store
+        # Join Product -> ProductImage, filter by store_id, order by product created_at desc
+        showcase_images = (
+            self.db.query(ProductImage.image_url)
+            .join(Product, ProductImage.product_id == Product.id)
+            .filter(
+                Product.store_id == store_id,
+                Product.is_active == True  # Only show images from active products
+            )
+            .order_by(Product.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        
+        # Extract URLs from query result tuples
+        return [img[0] for img in showcase_images]

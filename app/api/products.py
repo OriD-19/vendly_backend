@@ -117,8 +117,11 @@ def create_products_bulk(
     # Create products in bulk
     created, failed = product_service.create_products_bulk(bulk_data.products)
     
+    # Convert Product models to ProductResponse schemas
+    created_responses = [ProductResponse.model_validate(product) for product in created]
+    
     return ProductBulkResponse(
-        created=created,
+        created=created_responses,
         failed=failed,
         total_requested=len(bulk_data.products),
         total_created=len(created),

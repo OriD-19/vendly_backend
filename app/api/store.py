@@ -9,6 +9,7 @@ from app.services.store_service import StoreService
 from app.utils.auth_dependencies import get_current_user
 
 router = APIRouter(prefix="/stores", tags=["Stores"])
+SHOWCASE_IMAGE_LIMIT = 5
 
 
 def get_store_service(db: Session = Depends(get_db)) -> StoreService:
@@ -58,7 +59,18 @@ def get_my_stores(
     
     Supports pagination.
     """
-    return store_service.get_user_stores(current_user.id, skip, limit)
+    stores = store_service.get_user_stores(current_user.id, skip, limit)
+    
+    # Convert to response models and add showcase images
+    from app.schemas.store import StoreResponse
+    store_responses = []
+    for store in stores:
+        showcase_images = store_service.get_store_showcase_images(store.id, limit=SHOWCASE_IMAGE_LIMIT)
+        store_dict = StoreResponse.model_validate(store).model_dump()
+        store_dict['showcase_images'] = showcase_images
+        store_responses.append(StoreResponse(**store_dict))
+    
+    return store_responses
 
 
 @router.put(
@@ -172,7 +184,7 @@ def list_stores(
     GET /stores/?search=electronics&location=New%20York&sort_by=name&sort_order=asc
     ```
     """
-    return store_service.get_all_stores(
+    stores = store_service.get_all_stores(
         skip=skip,
         limit=min(limit, 100),  # Cap at 100
         search=search,
@@ -181,6 +193,17 @@ def list_stores(
         sort_by=sort_by,
         sort_order=sort_order
     )
+    
+    # Convert to response models and add showcase images
+    from app.schemas.store import StoreResponse
+    store_responses = []
+    for store in stores:
+        showcase_images = store_service.get_store_showcase_images(store.id, limit=SHOWCASE_IMAGE_LIMIT)
+        store_dict = StoreResponse.model_validate(store).model_dump()
+        store_dict['showcase_images'] = showcase_images
+        store_responses.append(StoreResponse(**store_dict))
+    
+    return store_responses
 
 
 @router.get(
@@ -208,7 +231,18 @@ def search_stores(
     GET /stores/search?q=electronics&limit=10
     ```
     """
-    return store_service.search_stores(q, min(limit, 50))
+    stores = store_service.search_stores(q, min(limit, 50))
+    
+    # Convert to response models and add showcase images
+    from app.schemas.store import StoreResponse
+    store_responses = []
+    for store in stores:
+        showcase_images = store_service.get_store_showcase_images(store.id, limit=SHOWCASE_IMAGE_LIMIT)
+        store_dict = StoreResponse.model_validate(store).model_dump()
+        store_dict['showcase_images'] = showcase_images
+        store_responses.append(StoreResponse(**store_dict))
+    
+    return store_responses
 
 
 @router.get(
@@ -228,7 +262,15 @@ def get_store(
     
     Returns complete store information including contact details and metadata.
     """
-    return store_service.get_store_by_id(store_id)
+    store = store_service.get_store_by_id(store_id)
+    
+    # Add showcase images to the response
+    from app.schemas.store import StoreResponse
+    showcase_images = store_service.get_store_showcase_images(store_id, limit=SHOWCASE_IMAGE_LIMIT)
+    store_dict = StoreResponse.model_validate(store).model_dump()
+    store_dict['showcase_images'] = showcase_images
+    
+    return StoreResponse(**store_dict)
 
 
 @router.get(
