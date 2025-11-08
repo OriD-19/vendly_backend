@@ -173,11 +173,11 @@ A complete, production-ready e-commerce API platform built with FastAPI, featuri
 | **Users** | 6 | User management and profiles |
 | **Stores** | 13 | Store management, analytics, search |
 | **Products** | 20 | Product CRUD, search, filters, recommendations |
-| **Categories** | 14 | Category management with hierarchies |
+| **Categories** | 15 | Category management with hierarchies, bulk creation |
 | **Orders** | 17 | Order management, tracking, analytics |
 | **Chat** | 11 + WebSocket | Real-time messaging between customers and stores |
 
-**Total: 87+ endpoints** with comprehensive OpenAPI documentation
+**Total: 88+ endpoints** with comprehensive OpenAPI documentation
 
 ### Key Features by Service
 
@@ -403,6 +403,8 @@ See [DEPLOYMENT_QUICK_REF.md](DEPLOYMENT_QUICK_REF.md) for comprehensive command
 - **[CI_CD_SETUP_SUMMARY.md](CI_CD_SETUP_SUMMARY.md)** - CI/CD pipeline overview
 - **[SUPABASE_MIGRATION_GUIDE.md](SUPABASE_MIGRATION_GUIDE.md)** - Database migration guide
 - **[SUPABASE_QUICK_REF.md](SUPABASE_QUICK_REF.md)** - Supabase quick reference
+- **[BULK_CATEGORIES_GUIDE.md](BULK_CATEGORIES_GUIDE.md)** - Bulk category creation guide
+- **[BULK_CATEGORIES_SUMMARY.md](BULK_CATEGORIES_SUMMARY.md)** - Quick reference for bulk categories
 - **[API Docs](http://localhost:8000/docs)** - Interactive API documentation (when running)
 
 ## 🤝 Contributing

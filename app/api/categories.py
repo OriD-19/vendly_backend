@@ -2,7 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
+from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse, CategoryBulkCreate, CategoryBulkResponse
 from app.schemas.product import ProductResponse
 from app.services.category import CategoryService
 from app.utils.auth_dependencies import get_current_active_user
@@ -27,6 +27,49 @@ def create_category(
     category_service = CategoryService(db)
     category = category_service.create_category(category_data)
     return category
+
+
+@router.post("/bulk", response_model=CategoryBulkResponse, status_code=status.HTTP_201_CREATED)
+def create_categories_bulk(
+    bulk_data: CategoryBulkCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Create multiple categories at once.
+    
+    Requires authentication.
+    
+    This endpoint will:
+    - Create all new categories that don't already exist
+    - Skip categories with duplicate names (case-insensitive)
+    - Return a detailed response with created and skipped categories
+    
+    Example request body:
+    ```json
+    {
+        "categories": [
+            {"name": "Electronics"},
+            {"name": "Clothing"},
+            {"name": "Food"}
+        ]
+    }
+    ```
+    
+    Limits:
+    - Minimum: 1 category
+    - Maximum: 100 categories per request
+    """
+    category_service = CategoryService(db)
+    created, skipped = category_service.create_categories_bulk(bulk_data.categories)
+    
+    return CategoryBulkResponse(
+        created=created,
+        skipped=skipped,
+        total_requested=len(bulk_data.categories),
+        total_created=len(created),
+        total_skipped=len(skipped)
+    )
 
 
 @router.get("/{category_id}", response_model=CategoryResponse)

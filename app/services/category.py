@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from fastapi import HTTPException, status
@@ -51,6 +51,61 @@ class CategoryService:
         self.db.refresh(category)
         
         return category
+
+    def create_categories_bulk(self, categories_data: List[CategoryCreate]) -> Tuple[List[Category], List[dict]]:
+        """
+        Create multiple categories at once.
+        
+        This method will:
+        - Skip categories that already exist (case-insensitive name check)
+        - Create all new categories in a single transaction
+        - Return both created categories and skipped ones
+        
+        Args:
+            categories_data: List of category creation data
+            
+        Returns:
+            Tuple of (created_categories, skipped_categories)
+            - created_categories: List of successfully created Category objects
+            - skipped_categories: List of dicts with info about skipped categories
+        """
+        created_categories = []
+        skipped_categories = []
+        
+        # Get all existing category names (lowercase for comparison)
+        existing_names = {
+            name[0].lower() for name in 
+            self.db.query(Category.name).all()
+        }
+        
+        # Process each category
+        for category_data in categories_data:
+            category_name_lower = category_data.name.lower()
+            
+            # Check if category already exists
+            if category_name_lower in existing_names:
+                skipped_categories.append({
+                    "name": category_data.name,
+                    "reason": "Category already exists"
+                })
+                continue
+            
+            # Create new category
+            category = Category(**category_data.model_dump())
+            self.db.add(category)
+            created_categories.append(category)
+            
+            # Add to existing names to prevent duplicates within the same batch
+            existing_names.add(category_name_lower)
+        
+        # Commit all at once
+        if created_categories:
+            self.db.commit()
+            # Refresh all created categories
+            for category in created_categories:
+                self.db.refresh(category)
+        
+        return created_categories, skipped_categories
 
     def get_category_by_id(self, category_id: int) -> Category:
         """
