@@ -29,12 +29,25 @@ class AuthService:
     
     # ========== User Authentication ==========
     
-    def authenticate_user(self, username: str, password: str) -> Optional[User]:
+    def authenticate_user(self, username_or_email: str, password: str) -> Optional[User]:
         """
-        Authenticate a user by username and password.
+        Authenticate a user by username or email and password.
         Returns the User object if authentication is successful, None otherwise.
+        
+        Args:
+            username_or_email: Can be either username or email address
+            password: Plain text password to verify
+        
+        Returns:
+            User object if authentication successful, None otherwise
         """
-        user = self.db.query(User).filter(User.username == username).first()
+        # Try to find user by email first (if it looks like an email)
+        if '@' in username_or_email:
+            user = self.db.query(User).filter(User.email == username_or_email).first()
+        else:
+            # Otherwise try username
+            user = self.db.query(User).filter(User.username == username_or_email).first()
+        
         if not user:
             return None
         if not self.verify_password(password, user.password_hash):

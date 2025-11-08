@@ -99,16 +99,18 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     """
     Login endpoint.
-    Authenticates user and returns access and refresh tokens.
+    Authenticates user with username or email and returns access and refresh tokens.
+    
+    Accepts either username or email in the username_or_email field.
     """
     auth_service = AuthService(db)
     
-    # Authenticate user
+    # Authenticate user (supports both username and email)
     user = auth_service.authenticate_user(login_data.username, login_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect username/email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     

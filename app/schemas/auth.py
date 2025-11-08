@@ -7,8 +7,11 @@ from app.schemas.store import StoreResponse
 # ========== Authentication Schemas ==========
 
 class LoginRequest(BaseModel):
-    """Schema for user login request."""
-    username: str = Field(..., min_length=3, max_length=80)
+    """
+    Schema for user login request.
+    Accepts either username or email for authentication.
+    """
+    username: str = Field(..., min_length=3, max_length=255, description="Username or email address")
     password: str = Field(..., min_length=8)
 
 
