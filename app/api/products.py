@@ -674,3 +674,84 @@ def deactivate_product(
     store_service.verify_store_ownership(product.store_id, current_user.id)
     
     return product_service.deactivate_product(product_id)
+
+
+# ========== Offer/Discount Endpoints ==========
+
+@router.get(
+    "/offers/all",
+    response_model=List[ProductResponse],
+    summary="Get all products with active offers",
+    description="Get all products currently on offer. Public endpoint."
+)
+def get_all_offers(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    product_service: ProductService = Depends(get_product_service)
+):
+    """
+    Get all products with active discount offers.
+    
+    **Public endpoint - no authentication required.**
+    
+    An offer is active if:
+    - Product has a discount_price set
+    - discount_end_date is null (no expiry) OR in the future
+    
+    Perfect for displaying "Hot Deals" or "Special Offers" sections.
+    """
+    return product_service.get_products_with_active_offers(skip=skip, limit=limit)
+
+
+@router.get(
+    "/offers/store/{store_id}",
+    response_model=List[ProductResponse],
+    summary="Get store offers",
+    description="Get all products with active offers from a specific store. Public endpoint."
+)
+def get_store_offers(
+    store_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    product_service: ProductService = Depends(get_product_service)
+):
+    """
+    Get all products with active offers from a specific store.
+    
+    **Public endpoint - no authentication required.**
+    
+    Great for "Store Deals" or "Store Promotions" pages.
+    
+    Example:
+    ```
+    GET /products/offers/store/1?skip=0&limit=20
+    ```
+    """
+    return product_service.get_store_offers(store_id, skip=skip, limit=limit)
+
+
+@router.get(
+    "/offers/category/{category_id}",
+    response_model=List[ProductResponse],
+    summary="Get category offers",
+    description="Get all products with active offers from a specific category. Public endpoint."
+)
+def get_category_offers(
+    category_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    product_service: ProductService = Depends(get_product_service)
+):
+    """
+    Get all products with active offers from a specific category.
+    
+    **Public endpoint - no authentication required.**
+    
+    Perfect for "Electronics on Sale" or "Fashion Deals" sections.
+    
+    Example:
+    ```
+    GET /products/offers/category/5?skip=0&limit=20
+    ```
+    """
+    return product_service.get_category_offers(category_id, skip=skip, limit=limit)

@@ -633,3 +633,98 @@ class ProductService:
         ).offset(skip).limit(limit).all()
         
         return products
+    
+    # ========== Offer/Discount Methods ==========
+    
+    def get_products_with_active_offers(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        store_id: Optional[int] = None,
+        category_id: Optional[int] = None
+    ) -> List[Product]:
+        """
+        Get all products with active discount offers.
+        
+        An offer is considered active if:
+        - discount_price is not null
+        - discount_end_date is null (no expiry) OR discount_end_date is in the future
+        
+        Args:
+            skip: Pagination offset
+            limit: Maximum number of results
+            store_id: Optional filter by store
+            category_id: Optional filter by category
+            
+        Returns:
+            List of products with active offers
+        """
+        from datetime import datetime
+        
+        query = self.db.query(Product).filter(
+            and_(
+                Product.is_active == True,
+                Product.discount_price.isnot(None),
+                or_(
+                    Product.discount_end_date.is_(None),
+                    Product.discount_end_date > datetime.utcnow()
+                )
+            )
+        )
+        
+        # Apply optional filters
+        if store_id:
+            query = query.filter(Product.store_id == store_id)
+        
+        if category_id:
+            query = query.filter(Product.category_id == category_id)
+        
+        products = query.offset(skip).limit(limit).all()
+        
+        return products
+    
+    def get_store_offers(
+        self,
+        store_id: int,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Product]:
+        """
+        Get all products with active offers for a specific store.
+        
+        Args:
+            store_id: The ID of the store
+            skip: Pagination offset
+            limit: Maximum number of results
+            
+        Returns:
+            List of products with active offers from the store
+        """
+        return self.get_products_with_active_offers(
+            skip=skip,
+            limit=limit,
+            store_id=store_id
+        )
+    
+    def get_category_offers(
+        self,
+        category_id: int,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Product]:
+        """
+        Get all products with active offers for a specific category.
+        
+        Args:
+            category_id: The ID of the category
+            skip: Pagination offset
+            limit: Maximum number of results
+            
+        Returns:
+            List of products with active offers from the category
+        """
+        return self.get_products_with_active_offers(
+            skip=skip,
+            limit=limit,
+            category_id=category_id
+        )

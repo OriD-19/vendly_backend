@@ -58,15 +58,23 @@ class OrderService:
                     detail=f"Insufficient stock for product '{product.name}'. Available: {product.stock}, Requested: {item.quantity}"
                 )
             
-            # Use the product's actual price from the database (security measure)
+            # Determine effective price (use discount if active, otherwise regular price)
+            effective_price = product.price
+            
+            # Check if product has an active discount
+            if product.discount_price is not None:
+                # Check if discount is still valid
+                if product.discount_end_date is None or product.discount_end_date > datetime.utcnow():
+                    effective_price = product.discount_price
+            
             # Store product data for order creation
             order_products_data.append({
                 'product': product,
                 'quantity': item.quantity,
-                'unit_price': product.price  # Use database price, not user-provided price
+                'unit_price': effective_price  # Use effective price (discount or regular)
             })
             
-            total_amount += product.price * item.quantity
+            total_amount += effective_price * item.quantity
         
         # Create order
         new_order = Order(

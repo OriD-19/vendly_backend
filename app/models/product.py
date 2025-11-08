@@ -22,6 +22,8 @@ class Product(Base):
 
     price: Mapped[float] = mapped_column(Float)
     production_cost: Mapped[float] = mapped_column(Float, default=0.0)  # Cost to produce/acquire the product
+    discount_price: Mapped[float | None] = mapped_column(Float, default=None)  # Discounted price (null = no discount)
+    discount_end_date: Mapped[datetime | None] = mapped_column(DateTime, default=None)  # Discount expiry date
     stock: Mapped[int] = mapped_column()
     is_active: Mapped[bool] = mapped_column(default=True)
 
