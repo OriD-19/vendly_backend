@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from fastapi import HTTPException, status
@@ -54,6 +54,124 @@ class ProductService:
         self.db.refresh(new_product)
         
         return new_product
+
+    def create_products_bulk(self, products_data: List[ProductCreate]) -> Tuple[List[Product], List[dict]]:
+        """
+        Create multiple products at once.
+        
+        This method will:
+        - Validate each product's store and category
+        - Skip products that fail validation (collect errors)
+        - Create all valid products in a single transaction
+        - Return both created products and failed ones with error messages
+        
+        Args:
+            products_data: List of product creation data
+            
+        Returns:
+            Tuple of (created_products, failed_products)
+            - created_products: List of successfully created Product objects
+            - failed_products: List of dicts with info about failed products
+        """
+        created_products = []
+        failed_products = []
+        
+        # Pre-fetch all stores and categories to minimize DB queries
+        store_ids = {p.store_id for p in products_data}
+        category_ids = {p.category_id for p in products_data}
+        
+        existing_stores = {
+            store.id: store for store in 
+            self.db.query(Store).filter(Store.id.in_(store_ids)).all()
+        }
+        
+        existing_categories = {
+            category.id: category for category in 
+            self.db.query(Category).filter(Category.id.in_(category_ids)).all()
+        }
+        
+        # Get all unique tag IDs from all products
+        all_tag_ids = set()
+        for product_data in products_data:
+            if product_data.tag_ids:
+                all_tag_ids.update(product_data.tag_ids)
+        
+        existing_tags = {}
+        if all_tag_ids:
+            existing_tags = {
+                tag.id: tag for tag in 
+                self.db.query(Tag).filter(Tag.id.in_(all_tag_ids)).all()
+            }
+        
+        # Process each product
+        for idx, product_data in enumerate(products_data):
+            try:
+                # Validate store exists
+                if product_data.store_id not in existing_stores:
+                    failed_products.append({
+                        "index": idx,
+                        "product_name": product_data.name,
+                        "reason": f"Store with id {product_data.store_id} not found"
+                    })
+                    continue
+                
+                # Validate category exists
+                if product_data.category_id not in existing_categories:
+                    failed_products.append({
+                        "index": idx,
+                        "product_name": product_data.name,
+                        "reason": f"Category with id {product_data.category_id} not found"
+                    })
+                    continue
+                
+                # Validate tags if provided
+                if product_data.tag_ids:
+                    missing_tags = [tid for tid in product_data.tag_ids if tid not in existing_tags]
+                    if missing_tags:
+                        failed_products.append({
+                            "index": idx,
+                            "product_name": product_data.name,
+                            "reason": f"Tag IDs not found: {missing_tags}"
+                        })
+                        continue
+                
+                # Create product
+                product_dict = product_data.model_dump(exclude={'tag_ids'})
+                new_product = Product(**product_dict)
+                
+                # Add tags if provided
+                if product_data.tag_ids:
+                    new_product.tags = [existing_tags[tid] for tid in product_data.tag_ids]
+                
+                self.db.add(new_product)
+                created_products.append(new_product)
+                
+            except Exception as e:
+                failed_products.append({
+                    "index": idx,
+                    "product_name": product_data.name,
+                    "reason": str(e)
+                })
+        
+        # Commit all valid products at once
+        if created_products:
+            try:
+                self.db.commit()
+                # Refresh all created products
+                for product in created_products:
+                    self.db.refresh(product)
+            except Exception as e:
+                self.db.rollback()
+                # If commit fails, mark all as failed
+                for product in created_products:
+                    failed_products.append({
+                        "index": len(failed_products),
+                        "product_name": product.name,
+                        "reason": f"Database commit failed: {str(e)}"
+                    })
+                created_products = []
+        
+        return created_products, failed_products
     
     def get_product_by_id(self, product_id: int) -> Product:
         """

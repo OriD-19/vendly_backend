@@ -86,3 +86,17 @@ class ProductResponse(ProductBase):
     images: List[ProductImageResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProductBulkCreate(BaseModel):
+    """Schema for creating multiple products at once"""
+    products: List[ProductCreate] = Field(..., min_items=1, max_items=100)
+
+
+class ProductBulkResponse(BaseModel):
+    """Response for bulk product creation"""
+    created: List[ProductResponse]
+    failed: List[dict]  # Products that failed validation
+    total_requested: int
+    total_created: int
+    total_failed: int

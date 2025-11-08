@@ -7,7 +7,8 @@ from app.models.product import Product, ProductImage, Tag
 from app.schemas.product import (
     ProductCreate, ProductUpdate, ProductResponse,
     TagCreate, TagUpdate, TagResponse,
-    ProductImageResponse
+    ProductImageResponse,
+    ProductBulkCreate, ProductBulkResponse
 )
 from app.services.product_service import ProductService
 from app.services.s3_service import S3Service, get_s3_service
@@ -55,6 +56,74 @@ def create_product(
     store_service.verify_store_ownership(product_data.store_id, current_user.id)
     
     return product_service.create_product(product_data)
+
+
+@router.post(
+    "/bulk",
+    response_model=ProductBulkResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create multiple products at once",
+    description="Bulk create products. Requires authentication and user must own all stores."
+)
+def create_products_bulk(
+    bulk_data: ProductBulkCreate,
+    current_user: User = Depends(get_current_user),
+    product_service: ProductService = Depends(get_product_service),
+    store_service: StoreService = Depends(get_store_service)
+):
+    """
+    Create multiple products at once.
+    
+    Requirements:
+    - User must be authenticated
+    - User must own ALL stores referenced in the products
+    - Products with invalid stores, categories, or tags will be skipped
+    - Returns detailed response with created and failed products
+    
+    Example request body:
+    ```json
+    {
+        "products": [
+            {
+                "name": "Laptop",
+                "short_description": "High-performance laptop",
+                "price": 999.99,
+                "stock": 10,
+                "store_id": 1,
+                "category_id": 1,
+                "tag_ids": [1, 2]
+            },
+            {
+                "name": "Mouse",
+                "short_description": "Wireless mouse",
+                "price": 29.99,
+                "stock": 50,
+                "store_id": 1,
+                "category_id": 1
+            }
+        ]
+    }
+    ```
+    
+    Limits:
+    - Minimum: 1 product
+    - Maximum: 100 products per request
+    """
+    # Verify user owns all stores referenced in the products
+    store_ids = {product.store_id for product in bulk_data.products}
+    for store_id in store_ids:
+        store_service.verify_store_ownership(store_id, current_user.id)
+    
+    # Create products in bulk
+    created, failed = product_service.create_products_bulk(bulk_data.products)
+    
+    return ProductBulkResponse(
+        created=created,
+        failed=failed,
+        total_requested=len(bulk_data.products),
+        total_created=len(created),
+        total_failed=len(failed)
+    )
 
 
 @router.get(

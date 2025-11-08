@@ -63,46 +63,52 @@ A complete, production-ready e-commerce API platform built with FastAPI, featuri
 ### Local Development
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/OriD-19/vendly_backend.git
    cd vendly_backend
    ```
 
 2. **Create virtual environment:**
+
    ```bash
    python -m venv venv
-   
+
    # Windows
    venv\Scripts\activate
-   
+
    # Linux/Mac
    source venv/bin/activate
    ```
 
 3. **Install dependencies:**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 4. **Set up environment variables:**
+
    ```bash
    cp .env.example .env
    # Edit .env with your credentials
    ```
 
 5. **Initialize database:**
+
    ```bash
    python init_db.py
-   
+
    # Optional: Seed with mock data
    python seed_database.py
    ```
 
 6. **Run the server:**
+
    ```bash
    # Development mode
    python main.py
-   
+
    # Or with auto-reload
    fastapi dev app/main.py
    ```
@@ -115,19 +121,20 @@ A complete, production-ready e-commerce API platform built with FastAPI, featuri
 ### Docker Deployment
 
 1. **Using Docker Compose:**
+
    ```bash
    # Build and start all services
    docker-compose up -d
-   
+
    # Initialize database
    docker-compose exec api python init_db.py
-   
+
    # Seed database (optional)
    docker-compose exec api python seed_database.py
-   
+
    # View logs
    docker-compose logs -f
-   
+
    # Stop services
    docker-compose down
    ```
@@ -142,6 +149,7 @@ A complete, production-ready e-commerce API platform built with FastAPI, featuri
 
 1. **Set up EC2 instance** (see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md))
 2. **Configure GitHub Secrets:**
+
    - `DOCKER_USERNAME` - Docker Hub username
    - `DOCKER_PASSWORD` - Docker Hub access token
    - `EC2_HOST` - EC2 public IP
@@ -149,6 +157,7 @@ A complete, production-ready e-commerce API platform built with FastAPI, featuri
    - `EC2_SSH_KEY` - Private SSH key (.pem file contents)
 
 3. **Push to deploy:**
+
    ```bash
    git add .
    git commit -m "Deploy to production"
@@ -167,37 +176,41 @@ A complete, production-ready e-commerce API platform built with FastAPI, featuri
 
 ### Services & Endpoints
 
-| Service | Endpoints | Description |
-|---------|-----------|-------------|
-| **Authentication** | 6 | User registration, login, token refresh |
-| **Users** | 6 | User management and profiles |
-| **Stores** | 13 | Store management, analytics, search |
-| **Products** | 20 | Product CRUD, search, filters, recommendations |
-| **Categories** | 15 | Category management with hierarchies, bulk creation |
-| **Orders** | 17 | Order management, tracking, analytics |
-| **Chat** | 11 + WebSocket | Real-time messaging between customers and stores |
+| Service            | Endpoints      | Description                                         |
+| ------------------ | -------------- | --------------------------------------------------- |
+| **Authentication** | 6              | User registration, login, token refresh             |
+| **Users**          | 6              | User management and profiles                        |
+| **Stores**         | 13             | Store management, analytics, search                 |
+| **Products**       | 21             | Product CRUD, search, filters, bulk creation        |
+| **Categories**     | 15             | Category management with hierarchies, bulk creation |
+| **Orders**         | 17             | Order management, tracking, analytics               |
+| **Chat**           | 11 + WebSocket | Real-time messaging between customers and stores    |
 
-**Total: 88+ endpoints** with comprehensive OpenAPI documentation
+**Total: 89+ endpoints** with comprehensive OpenAPI documentation
 
 ### Key Features by Service
 
 #### 🔐 Authentication
+
 - JWT-based authentication with refresh tokens
 - Secure password hashing (bcrypt)
 - Role-based access control (Customer/Store Owner)
 
 #### 👥 User Management
+
 - Customer and store owner profiles
 - User preferences and settings
 - Profile updates and verification
 
 #### 🏪 Store Management
+
 - Multi-tenant store support
 - Store analytics and insights
 - Product inventory management
 - Search and filtering
 
 #### 📦 Product Management
+
 - Full CRUD operations
 - Image upload to AWS S3
 - Advanced search and filtering
@@ -206,6 +219,7 @@ A complete, production-ready e-commerce API platform built with FastAPI, featuri
 - Category hierarchies
 
 #### 🛒 Order Management
+
 - Complete order lifecycle
 - Order tracking and status updates
 - Revenue analytics
@@ -213,6 +227,7 @@ A complete, production-ready e-commerce API platform built with FastAPI, featuri
 - Sales reports and insights
 
 #### 💬 Real-Time Chat
+
 - WebSocket-based messaging
 - Customer-store communication
 - Message history
@@ -316,6 +331,7 @@ open htmlcov/index.html
 ## 📊 Database
 
 ### Supported Databases
+
 - **Development:** SQLite (automatic fallback)
 - **Production:** PostgreSQL (Supabase recommended)
 
@@ -337,7 +353,9 @@ docker-compose exec api python
 ```
 
 ### Mock Data
+
 The seeder creates:
+
 - 5 users (2 store owners, 3 customers)
 - 2 stores (TechHub Electronics, Chic Fashion Boutique)
 - 22 products across 8 categories
@@ -346,6 +364,7 @@ The seeder creates:
 - Product images, tags, and relationships
 
 **Login credentials:**
+
 - Store Owners: `techstore_owner` / `storeowner123`, `fashion_boutique` / `storeowner123`
 - Customers: `john_doe` / `customer123`, `jane_smith` / `customer123`, `mike_wilson` / `customer123`
 
@@ -404,7 +423,8 @@ See [DEPLOYMENT_QUICK_REF.md](DEPLOYMENT_QUICK_REF.md) for comprehensive command
 - **[SUPABASE_MIGRATION_GUIDE.md](SUPABASE_MIGRATION_GUIDE.md)** - Database migration guide
 - **[SUPABASE_QUICK_REF.md](SUPABASE_QUICK_REF.md)** - Supabase quick reference
 - **[BULK_CATEGORIES_GUIDE.md](BULK_CATEGORIES_GUIDE.md)** - Bulk category creation guide
-- **[BULK_CATEGORIES_SUMMARY.md](BULK_CATEGORIES_SUMMARY.md)** - Quick reference for bulk categories
+- **[BULK_PRODUCTS_GUIDE.md](BULK_PRODUCTS_GUIDE.md)** - Bulk product creation guide
+- **[BULK_PRODUCTS_SUMMARY.md](BULK_PRODUCTS_SUMMARY.md)** - Quick reference for bulk products
 - **[API Docs](http://localhost:8000/docs)** - Interactive API documentation (when running)
 
 ## 🤝 Contributing
