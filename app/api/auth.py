@@ -60,11 +60,12 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         
         store_service = StoreService(db)
         store_data = StoreCreate(
-            name=user_data.store_name,
+            name=user_data.store_name or f'Tienda de {new_user.username}', 
             owner_id=new_user.id,
-            store_location=user_data.store_location,
-            type=user_data.type,
-            phone=user_data.phone
+            store_location=user_data.store_location or '',
+            type=user_data.type or '',
+            phone=user_data.phone,
+            profile_image=None
         )
         store = store_service.create_store(store_data, new_user)
         
@@ -118,6 +119,13 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
         from sqlalchemy.orm import joinedload
         # Reload user with store relationship
         user = db.query(User).options(joinedload(User.store)).filter(User.id == user.id).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Store not found for the store owner"
+            )
+
         store = db.query(Store).filter(Store.owner_id == user.id).first()
     
     # Create tokens
