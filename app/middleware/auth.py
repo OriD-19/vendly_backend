@@ -227,6 +227,30 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 category_id = path.split("/")[2]
                 if category_id.isdigit():
                     return True
+            
+            # /categories/all/with-counts (public category browsing with counts)
+            if path == "/categories/all/with-counts":
+                return True
+            
+            # /categories/:id/products (public product browsing by category)
+            if path.startswith("/categories/") and "/products" in path:
+                return True
+            
+            # /categories/:id/count (public category product counts)
+            if path.startswith("/categories/") and path.endswith("/count"):
+                return True
+            
+            # /categories/:id/statistics (public category statistics)
+            if path.startswith("/categories/") and path.endswith("/statistics"):
+                return True
+            
+            # /categories/name/:name (public category lookup by name)
+            if path.startswith("/categories/name/"):
+                return True
+            
+            # /categories/search/:term (public category search)
+            if path.startswith("/categories/search/"):
+                return True
         
         return False
     

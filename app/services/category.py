@@ -4,7 +4,7 @@ from sqlalchemy import func, or_
 from fastapi import HTTPException, status
 from app.models.category import Category
 from app.models.product import Product
-from app.schemas.category import CategoryCreate, CategoryUpdate
+from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryWithProductCount
 
 
 class CategoryService:
@@ -533,28 +533,77 @@ class CategoryService:
         
         return categories
 
-    def get_categories_with_product_count(self) -> List[dict]:
+    def get_categories_with_product_count(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        sort_by: str = "name",
+        sort_order: str = "asc"
+    ) -> List[CategoryWithProductCount]:
         """
         Get all categories with their product counts.
         
+        Args:
+            skip: Number of records to skip (pagination)
+            limit: Maximum number of records to return
+            sort_by: Field to sort by (name, count, created_at, updated_at)
+            sort_order: Sort order (asc or desc)
+        
         Returns:
-            List of dictionaries with category info and product count
+            List of CategoryWithProductCount objects
         """
-        categories = self.db.query(Category).all()
+        # Query categories with product counts using a subquery for better performance
+        from sqlalchemy import case
         
-        result = []
-        for category in categories:
-            product_count = self.db.query(func.count(Product.id)).filter(
-                Product.category_id == category.id,
-                Product.is_active == True
-            ).scalar() or 0
-            
-            result.append({
-                "id": category.id,
-                "name": category.name,
-                "product_count": product_count,
-                "created_at": category.created_at,
-                "updated_at": category.updated_at
-            })
+        # Subquery to count products per category
+        product_count_subquery = (
+            self.db.query(
+                Product.category_id,
+                func.count(Product.id).label('product_count')
+            )
+            .filter(Product.is_active == True)
+            .group_by(Product.category_id)
+            .subquery()
+        )
         
-        return result
+        # Main query with left join to include categories with 0 products
+        query = (
+            self.db.query(
+                Category,
+                func.coalesce(product_count_subquery.c.product_count, 0).label('product_count')
+            )
+            .outerjoin(
+                product_count_subquery,
+                Category.id == product_count_subquery.c.category_id
+            )
+        )
+        
+        # Apply sorting
+        if sort_by == "count":
+            # Sort by product count
+            if sort_order.lower() == "desc":
+                query = query.order_by(func.coalesce(product_count_subquery.c.product_count, 0).desc())
+            else:
+                query = query.order_by(func.coalesce(product_count_subquery.c.product_count, 0).asc())
+        else:
+            # Sort by category field
+            sort_column = getattr(Category, sort_by, Category.name)
+            if sort_order.lower() == "desc":
+                query = query.order_by(sort_column.desc())
+            else:
+                query = query.order_by(sort_column.asc())
+        
+        # Apply pagination
+        results = query.offset(skip).limit(limit).all()
+        
+        # Convert to CategoryWithProductCount objects
+        return [
+            CategoryWithProductCount(
+                id=category.id,
+                name=category.name,
+                product_count=product_count,
+                created_at=category.created_at,
+                updated_at=category.updated_at
+            )
+            for category, product_count in results
+        ]

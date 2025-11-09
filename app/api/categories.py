@@ -2,7 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse, CategoryBulkCreate, CategoryBulkResponse
+from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse, CategoryBulkCreate, CategoryBulkResponse, CategoryWithProductCount
 from app.schemas.product import ProductResponse
 from app.services.category import CategoryService
 from app.utils.auth_dependencies import get_current_active_user
@@ -64,7 +64,7 @@ def create_categories_bulk(
     created, skipped = category_service.create_categories_bulk(bulk_data.categories)
     
     return CategoryBulkResponse(
-        created=created,
+        created=[CategoryResponse.model_validate(cat) for cat in created],
         skipped=skipped,
         total_requested=len(bulk_data.categories),
         total_created=len(created),
@@ -305,8 +305,12 @@ def get_category_statistics(
     return statistics
 
 
-@router.get("/all/with-counts")
+@router.get("/all/with-counts", response_model=List[CategoryWithProductCount])
 def get_categories_with_counts(
+    skip: int = Query(0, ge=0, description="Number of categories to skip (pagination)"),
+    limit: int = Query(100, ge=1, le=200, description="Maximum number of categories to return"),
+    sort_by: str = Query("name", regex="^(name|count|created_at|updated_at)$", description="Field to sort by"),
+    sort_order: str = Query("asc", regex="^(asc|desc)$", description="Sort order (asc or desc)"),
     db: Session = Depends(get_db)
 ):
     """
@@ -314,10 +318,29 @@ def get_categories_with_counts(
     
     Useful for displaying category menus with product counts.
     
-    Public endpoint - no authentication required.
+    **Public endpoint** - no authentication required.
+    
+    **Query Parameters:**
+    - `skip`: Pagination offset (default: 0)
+    - `limit`: Max results (default: 100, max: 200)
+    - `sort_by`: Field to sort by (name, count, created_at, updated_at)
+    - `sort_order`: Sort order (asc or desc)
+    
+    **Examples:**
+    - Get top 5 categories with most products:
+      `/categories/all/with-counts?limit=5&sort_by=count&sort_order=desc`
+    - Get categories alphabetically:
+      `/categories/all/with-counts?sort_by=name&sort_order=asc`
+    - Get next page of 10 categories:
+      `/categories/all/with-counts?skip=10&limit=10`
     """
     category_service = CategoryService(db)
-    categories = category_service.get_categories_with_product_count()
+    categories = category_service.get_categories_with_product_count(
+        skip=skip,
+        limit=limit,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
     return categories
 
 

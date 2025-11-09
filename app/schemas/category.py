@@ -15,7 +15,7 @@ class CategoryCreate(CategoryBase):
 
 class CategoryBulkCreate(BaseModel):
     """Schema for creating multiple categories at once"""
-    categories: List[CategoryCreate] = Field(..., min_items=1, max_items=100)
+    categories: List[CategoryCreate] = Field(..., min_length=1, max_length=100)
 
 
 class CategoryUpdate(BaseModel):
@@ -28,6 +28,11 @@ class CategoryResponse(CategoryBase):
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CategoryWithProductCount(CategoryResponse):
+    """Category with product count for menu displays"""
+    product_count: int = Field(..., description="Number of active products in this category")
 
 
 class CategoryBulkResponse(BaseModel):
