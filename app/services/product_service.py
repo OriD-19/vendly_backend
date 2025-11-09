@@ -644,15 +644,15 @@ class ProductService:
         category_id: Optional[int] = None
     ) -> List[Product]:
         """
-        Get all products with active discount offers.
+        Get products with active discount offers.
         
-        An offer is considered active if:
-        - discount_price is not null
-        - discount_end_date is null (no expiry) OR discount_end_date is in the future
+        An offer is active if:
+        - Product has a discount_price set (not null)
+        - discount_end_date is null (no expiry) OR in the future
         
         Args:
             skip: Pagination offset
-            limit: Maximum number of results
+            limit: Maximum results
             store_id: Optional filter by store
             category_id: Optional filter by category
             
@@ -663,39 +663,31 @@ class ProductService:
         
         query = self.db.query(Product).filter(
             and_(
-                Product.is_active == True,
                 Product.discount_price.isnot(None),
+                Product.is_active == True,
                 or_(
                     Product.discount_end_date.is_(None),
-                    Product.discount_end_date > datetime.utcnow()
+                    Product.discount_end_date > datetime.now()
                 )
             )
         )
         
-        # Apply optional filters
-        if store_id:
+        if store_id is not None:
             query = query.filter(Product.store_id == store_id)
         
-        if category_id:
+        if category_id is not None:
             query = query.filter(Product.category_id == category_id)
         
-        products = query.offset(skip).limit(limit).all()
-        
-        return products
+        return query.offset(skip).limit(limit).all()
     
-    def get_store_offers(
-        self,
-        store_id: int,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[Product]:
+    def get_store_offers(self, store_id: int, skip: int = 0, limit: int = 100) -> List[Product]:
         """
-        Get all products with active offers for a specific store.
+        Get all products with active offers from a specific store.
         
         Args:
-            store_id: The ID of the store
+            store_id: ID of the store
             skip: Pagination offset
-            limit: Maximum number of results
+            limit: Maximum results
             
         Returns:
             List of products with active offers from the store
@@ -706,19 +698,14 @@ class ProductService:
             store_id=store_id
         )
     
-    def get_category_offers(
-        self,
-        category_id: int,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[Product]:
+    def get_category_offers(self, category_id: int, skip: int = 0, limit: int = 100) -> List[Product]:
         """
-        Get all products with active offers for a specific category.
+        Get all products with active offers from a specific category.
         
         Args:
-            category_id: The ID of the category
+            category_id: ID of the category
             skip: Pagination offset
-            limit: Maximum number of results
+            limit: Maximum results
             
         Returns:
             List of products with active offers from the category

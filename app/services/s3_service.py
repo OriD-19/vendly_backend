@@ -58,12 +58,15 @@ class S3Service:
                 detail="S3 service is not configured. Please contact administrator."
             )
     
-    def _validate_image_file(self, file: UploadFile):
+    def _validate_image_file(self, file: UploadFile) -> int:
         """
         Validate uploaded file is an image and within size limits.
         
         Args:
             file: The uploaded file
+            
+        Returns:
+            File size in bytes
             
         Raises:
             HTTPException 400: If file is invalid
@@ -80,19 +83,19 @@ class S3Service:
         if file.content_type not in allowed_types:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}"
+                detail=f"Invalid file type '{file.content_type}'. Allowed types: {', '.join(allowed_types)}"
             )
         
         # Check file size (10MB max)
         max_size = 10 * 1024 * 1024  # 10MB in bytes
         file.file.seek(0, 2)  # Seek to end
         file_size = file.file.tell()
-        file.file.seek(0)  # Reset to beginning
+        file.file.seek(0)  # Reset to beginning - CRITICAL for upload
         
         if file_size > max_size:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File size exceeds maximum allowed size of {max_size / (1024*1024)}MB"
+                detail=f"File size ({file_size / (1024*1024):.2f}MB) exceeds maximum allowed size of {max_size / (1024*1024)}MB"
             )
         
         if file_size == 0:
@@ -100,6 +103,8 @@ class S3Service:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File is empty"
             )
+        
+        return file_size
     
     def _generate_unique_filename(self, original_filename: str) -> str:
         """
@@ -144,7 +149,7 @@ class S3Service:
             HTTPException 500: If upload fails
         """
         self._validate_configuration()
-        self._validate_image_file(file)
+        file_size = self._validate_image_file(file)
         
         # Type narrowing: s3_client is guaranteed to be not None after validation
         assert self.s3_client is not None
@@ -160,31 +165,54 @@ class S3Service:
             else:
                 s3_key = f"{self.product_images_folder}/{unique_filename}"
             
-            # Upload to S3
-            self.s3_client.upload_fileobj(
-                file.file,
-                self.bucket_name,
-                s3_key,
-                ExtraArgs={
-                    'ContentType': file.content_type,
-                    'ACL': 'public-read'  # Make image publicly accessible
-                }
-            )
+            # IMPORTANT: Ensure file pointer is at the beginning
+            file.file.seek(0)
+            
+            # Prepare upload arguments
+            extra_args = {
+                'ContentType': file.content_type or 'image/jpeg',
+            }
+            
+            # Try with ACL first, fallback without ACL if bucket doesn't allow it
+            try:
+                extra_args['ACL'] = 'public-read'
+                self.s3_client.upload_fileobj(
+                    file.file,
+                    self.bucket_name,
+                    s3_key,
+                    ExtraArgs=extra_args
+                )
+            except ClientError as acl_error:
+                # If ACL fails, try without it (bucket might have public access via policy)
+                if 'AccessControlListNotSupported' in str(acl_error):
+                    logger.warning(f"ACL not supported for bucket {self.bucket_name}, uploading without ACL")
+                    file.file.seek(0)  # Reset pointer again
+                    del extra_args['ACL']
+                    self.s3_client.upload_fileobj(
+                        file.file,
+                        self.bucket_name,
+                        s3_key,
+                        ExtraArgs=extra_args
+                    )
+                else:
+                    raise  # Re-raise if it's a different ACL error
             
             # Construct public URL
             image_url = f"https://{self.bucket_name}.s3.{self.aws_region}.amazonaws.com/{s3_key}"
             
-            logger.info(f"Successfully uploaded image to S3: {s3_key}")
+            logger.info(f"Successfully uploaded image to S3: {s3_key} (size: {file_size / 1024:.2f}KB)")
             return image_url
             
         except ClientError as e:
-            logger.error(f"S3 upload failed: {str(e)}")
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            error_message = e.response.get('Error', {}).get('Message', str(e))
+            logger.error(f"S3 ClientError [{error_code}]: {error_message}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to upload image to S3: {str(e)}"
+                detail=f"Failed to upload image to S3 [{error_code}]: {error_message}"
             )
         except Exception as e:
-            logger.error(f"Unexpected error during S3 upload: {str(e)}")
+            logger.error(f"Unexpected error during S3 upload: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Unexpected error during image upload: {str(e)}"
@@ -208,9 +236,19 @@ class S3Service:
             List of public URLs for uploaded images
             
         Raises:
-            HTTPException 400: If too many files or invalid files
+            HTTPException 400: If too many files, no files, or ALL uploads fail
             HTTPException 503: If S3 not configured
+            
+        Note:
+            If SOME uploads succeed and others fail, returns successful URLs
+            and logs warnings about failures. If ALL fail, raises exception.
         """
+        if len(files) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No files provided for upload"
+            )
+        
         if len(files) > max_images:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -224,16 +262,41 @@ class S3Service:
             try:
                 url = self.upload_product_image(file, product_id)
                 uploaded_urls.append(url)
+                logger.info(f"Upload {idx + 1}/{len(files)}: SUCCESS - {file.filename}")
             except HTTPException as e:
                 failed_uploads.append({
                     "filename": file.filename,
-                    "error": e.detail
+                    "error": e.detail,
+                    "status_code": e.status_code
                 })
-                logger.warning(f"Failed to upload {file.filename}: {e.detail}")
+                logger.error(f"Upload {idx + 1}/{len(files)}: FAILED - {file.filename}: {e.detail}")
+            except Exception as e:
+                failed_uploads.append({
+                    "filename": file.filename,
+                    "error": str(e),
+                    "status_code": 500
+                })
+                logger.error(f"Upload {idx + 1}/{len(files)}: FAILED - {file.filename}: {str(e)}")
         
-        # If some uploads failed, return partial success with warning
+        # If ALL uploads failed, raise an exception with details
+        if len(uploaded_urls) == 0:
+            error_details = "; ".join([f"{f['filename']}: {f['error']}" for f in failed_uploads[:3]])
+            if len(failed_uploads) > 3:
+                error_details += f" (and {len(failed_uploads) - 3} more)"
+            
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"All image uploads failed. Errors: {error_details}"
+            )
+        
+        # If some uploads failed, log comprehensive warning
         if failed_uploads:
-            logger.warning(f"Partial upload: {len(uploaded_urls)}/{len(files)} succeeded")
+            logger.warning(
+                f"Partial upload success: {len(uploaded_urls)}/{len(files)} succeeded, "
+                f"{len(failed_uploads)} failed. Failed files: {[f['filename'] for f in failed_uploads]}"
+            )
+        else:
+            logger.info(f"All {len(files)} images uploaded successfully")
         
         return uploaded_urls
     

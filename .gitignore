@@ -91,3 +91,5 @@ logs/
 
 *.md
 !README.md
+
+test_s3_connection.py
