@@ -251,6 +251,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
             # /categories/search/:term (public category search)
             if path.startswith("/categories/search/"):
                 return True
+            
+            # /reviews/* (public review browsing)
+            if path.startswith("/reviews/"):
+                # Allow all GET requests to reviews except /reviews/customer/me
+                if not path.startswith("/reviews/customer/me"):
+                    return True
         
         return False
     

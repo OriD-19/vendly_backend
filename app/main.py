@@ -10,6 +10,7 @@ from app.models.category import Category
 from app.models.product import Product, Tag, ProductTag, ProductImage
 from app.models.order import Order, OrderProduct
 from app.models.chat_message import ChatMessage
+from app.models.review import Review
 
 from app.api.auth import router as auth_router
 from app.api.users import router as users_router
@@ -18,6 +19,7 @@ from app.api.orders import router as orders_router
 from app.api.categories import router as categories_router
 from app.api.store import router as store_router
 from app.api.products import router as products_router
+from app.api.reviews import router as reviews_router
 
 from app.middleware.auth import AuthMiddleware
 from app.middleware.logging import LoggingMiddleware
@@ -53,6 +55,7 @@ app.include_router(orders_router)
 app.include_router(categories_router)
 app.include_router(store_router)
 app.include_router(products_router)
+app.include_router(reviews_router)
 
 logger.info("API routers registered successfully")
 

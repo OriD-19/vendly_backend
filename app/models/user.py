@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from app.models.chat_message import ChatMessage
     from app.models.order import Order
     from app.models.store import Store
+    from app.models.review import Review
 
 
 class UserType(str, Enum):
@@ -44,6 +45,7 @@ class User(Base):
     chat_messages: Mapped[List["ChatMessage"]] = relationship("ChatMessage", back_populates="sender") #type: ignore
     orders: Mapped[List["Order"]] = relationship("Order", back_populates="customer") #type: ignore
     store: Mapped[Optional["Store"]] = relationship("Store", back_populates="owner", foreign_keys="Store.owner_id") #type: ignore
+    reviews: Mapped[List["Review"]] = relationship("Review", back_populates="customer") #type: ignore
 
     __mapper_args__ = {
         'polymorphic_on': user_type,

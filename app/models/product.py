@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from app.models.store import Store
     from app.models.category import Category
     from app.models.order import OrderProduct
+    from app.models.review import Review
 
 
 class Product(Base):
@@ -46,6 +47,9 @@ class Product(Base):
 
     # get all orders containing this product
     orders: Mapped[List["OrderProduct"]] = relationship("OrderProduct", back_populates="product") # type: ignore
+    
+    # reviews
+    reviews: Mapped[List["Review"]] = relationship("Review", back_populates="product", cascade="all, delete-orphan") # type: ignore
 
 
 class Tag(Base):

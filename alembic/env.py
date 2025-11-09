@@ -21,6 +21,7 @@ from app.models.category import Category
 from app.models.product import Product, Tag, ProductTag, ProductImage
 from app.models.order import Order, OrderProduct
 from app.models.chat_message import ChatMessage
+from app.models.review import Review
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
