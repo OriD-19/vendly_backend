@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, WebSocket
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -58,3 +58,42 @@ def get_optional_current_user(
     auth_service = AuthService(db)
     
     return auth_service.get_user_from_token(token)
+
+
+async def get_websocket_user(
+    websocket: WebSocket,
+    token: Optional[str] = None,
+    db: Session = Depends(get_db)
+) -> User:
+    """
+    Dependency to authenticate WebSocket connections.
+    
+    Token can be provided via:
+    1. Query parameter: ?token=<jwt_token>
+    2. WebSocket subprotocol header
+    
+    Raises:
+        WebSocket close with code 1008 (Policy Violation) if authentication fails
+    """
+    # Try to get token from query params
+    if not token:
+        token = websocket.query_params.get("token")
+    
+    if not token:
+        await websocket.close(code=1008, reason="Missing authentication token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authentication token"
+        )
+    
+    auth_service = AuthService(db)
+    user = auth_service.get_user_from_token(token)
+    
+    if not user:
+        await websocket.close(code=1008, reason="Invalid or expired token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
+    
+    return user
