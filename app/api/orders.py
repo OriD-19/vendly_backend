@@ -119,13 +119,26 @@ def update_order(
 ):
     """
     Update order information.
-    Only the customer who placed the order can update it.
+    Can be updated by:
+    - The customer who placed the order
+    - The store owner whose products are in the order
     """
     order_service = OrderService(db)
     order = order_service.get_order_by_id(order_id)
     
-    # Authorization check
-    if order.customer_id != current_user.id:
+    # Authorization check: Allow customer or store owner
+    is_customer = order.customer_id == current_user.id
+    
+    # Check if user is the store owner of any products in this order
+    is_store_owner = False
+    if not is_customer:
+        # Get all products in the order and check if user owns any of the stores
+        for order_product in order.products:
+            if order_product.product.store.owner_id == current_user.id:
+                is_store_owner = True
+                break
+    
+    if not is_customer and not is_store_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this order"
@@ -144,12 +157,25 @@ def cancel_order(
     """
     Cancel an order.
     Restores product stock.
+    Can be canceled by:
+    - The customer who placed the order
+    - The store owner whose products are in the order
     """
     order_service = OrderService(db)
     order = order_service.get_order_by_id(order_id)
     
-    # Authorization check
-    if order.customer_id != current_user.id:
+    # Authorization check: Allow customer or store owner
+    is_customer = order.customer_id == current_user.id
+    
+    # Check if user is the store owner of any products in this order
+    is_store_owner = False
+    if not is_customer:
+        for order_product in order.products:
+            if order_product.product.store.owner_id == current_user.id:
+                is_store_owner = True
+                break
+    
+    if not is_customer and not is_store_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to cancel this order"
@@ -168,13 +194,25 @@ def delete_order(
     """
     Delete an order (hard delete).
     Should only be used for invalid/test orders.
-    Admin only.
+    Can be deleted by:
+    - The customer who placed the order
+    - The store owner whose products are in the order
     """
     order_service = OrderService(db)
     order = order_service.get_order_by_id(order_id)
     
-    # Authorization check - TODO: Add admin role check
-    if order.customer_id != current_user.id:
+    # Authorization check: Allow customer or store owner
+    is_customer = order.customer_id == current_user.id
+    
+    # Check if user is the store owner of any products in this order
+    is_store_owner = False
+    if not is_customer:
+        for order_product in order.products:
+            if order_product.product.store.owner_id == current_user.id:
+                is_store_owner = True
+                break
+    
+    if not is_customer and not is_store_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to delete this order"

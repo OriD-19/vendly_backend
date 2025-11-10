@@ -111,11 +111,18 @@ class OrderService:
     
     def get_order_by_id(self, order_id: int) -> Order:
         """Get a single order by ID."""
+        from app.models.store import Store
+        
         order = (
             self.db.query(Order)
             .options(
                 joinedload(Order.customer),
-                joinedload(Order.products).joinedload(OrderProduct.product).joinedload(Product.images)
+                joinedload(Order.products)
+                    .joinedload(OrderProduct.product)
+                    .joinedload(Product.images),
+                joinedload(Order.products)
+                    .joinedload(OrderProduct.product)
+                    .joinedload(Product.store)
             )
             .filter(Order.id == order_id)
             .first()
