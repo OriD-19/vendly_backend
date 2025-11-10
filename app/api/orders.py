@@ -52,14 +52,7 @@ def get_order(
     order_service = OrderService(db)
     order = order_service.get_order_by_id(order_id)
     
-    # Authorization: Only customer who placed order or store owner can view
-    # TODO: Add store owner check
-    if order.customer_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view this order"
-        )
-    
+    # Allow all authenticated users to view orders
     return order
 
 
@@ -73,13 +66,7 @@ def get_order_by_number(
     order_service = OrderService(db)
     order = order_service.get_order_by_number(order_number)
     
-    # Authorization check
-    if order.customer_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view this order"
-        )
-    
+    # Allow all authenticated users to view orders
     return order
 
 
