@@ -1,62 +1,27 @@
 {
-    # Global options
-    admin off
-    # Uncomment for production
-    # email your-email@example.com
+    email fernandocastillo.8@hotmail.com
 }
 
-# Local development (no SSL)
-:80 {
-    # Reverse proxy to FastAPI
+api.lacuponera.store {
     reverse_proxy api:8000
-
-    # Enable compression
     encode gzip
-
-    # CORS headers (optional, FastAPI handles this)
+    
+    tls fernandocastillo.8@hotmail.com
+    
     header {
-        # Security headers
-        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
         X-XSS-Protection "1; mode=block"
         Referrer-Policy "strict-origin-when-cross-origin"
     }
-
-    # Logs
+    
     log {
-        output stdout
-        format console
+        output file /data/logs/access.log {
+            roll_size 100mb
+            roll_keep 5
+        }
+        format json
     }
 }
 
-# Production domain (uncomment and modify for production with your domain)
-# api.yourdomain.com {
-#     # Reverse proxy to FastAPI
-#     reverse_proxy api:8000
-# 
-#     # Enable compression
-#     encode gzip
-#     
-#     # Automatic HTTPS with Let's Encrypt
-#     tls your-email@example.com
-#     
-#     # Security headers
-#     header {
-#         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-#         X-Content-Type-Options "nosniff"
-#         X-Frame-Options "DENY"
-#         X-XSS-Protection "1; mode=block"
-#         Referrer-Policy "strict-origin-when-cross-origin"
-#     }
-#     
-#     # Logs
-#     log {
-#         output file /data/logs/access.log {
-#             roll_size 100mb
-#             roll_keep 5
-#             roll_keep_for 720h
-#         }
-#         format json
-#     }
-# }
