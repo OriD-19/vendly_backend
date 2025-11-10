@@ -41,11 +41,11 @@ class ReviewResponse(ReviewBase):
     id: int
     product_id: int
     customer_id: int
-    customer_username: str = Field(..., description="Username of the reviewer")
+    customer_username: Optional[str] = Field(None, description="Username of the reviewer")
     created_at: datetime
     updated_at: datetime
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class ProductReviewStats(BaseModel):

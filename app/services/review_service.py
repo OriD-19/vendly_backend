@@ -1,5 +1,5 @@
 from typing import List, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_
 from fastapi import HTTPException, status
 from app.models.review import Review
@@ -84,12 +84,14 @@ class ReviewService:
             review_id: The ID of the review
             
         Returns:
-            Review object
+            Review object with customer relationship loaded
             
         Raises:
             HTTPException 404: If review not found
         """
-        review = self.db.query(Review).filter(Review.id == review_id).first()
+        review = self.db.query(Review).options(
+            joinedload(Review.customer)
+        ).filter(Review.id == review_id).first()
         
         if not review:
             raise HTTPException(
@@ -108,9 +110,11 @@ class ReviewService:
             product_id: The ID of the product
             
         Returns:
-            Review object or None if not found
+            Review object with customer relationship loaded, or None if not found
         """
-        review = self.db.query(Review).filter(
+        review = self.db.query(Review).options(
+            joinedload(Review.customer)
+        ).filter(
             and_(
                 Review.customer_id == customer_id,
                 Review.product_id == product_id
@@ -218,7 +222,9 @@ class ReviewService:
                 detail=f"Product with id {product_id} not found"
             )
         
-        query = self.db.query(Review).filter(Review.product_id == product_id)
+        query = self.db.query(Review).options(
+            joinedload(Review.customer)
+        ).filter(Review.product_id == product_id)
         
         # Apply rating filter
         if rating_filter is not None:
@@ -260,10 +266,11 @@ class ReviewService:
             limit: Maximum number of records to return
             
         Returns:
-            List of reviews
+            List of reviews with customer relationship loaded
         """
         reviews = (
             self.db.query(Review)
+            .options(joinedload(Review.customer))
             .filter(Review.customer_id == customer_id)
             .order_by(Review.created_at.desc())
             .offset(skip)

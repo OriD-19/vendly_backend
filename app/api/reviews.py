@@ -40,7 +40,7 @@ def create_review(
     review_service = ReviewService(db)
     review = review_service.create_review(review_data, current_user.id)
     
-    # Add customer username to response
+    # Build response with customer username
     response = ReviewResponse.model_validate(review)
     response.customer_username = current_user.username
     
@@ -60,9 +60,10 @@ def get_review(
     review_service = ReviewService(db)
     review = review_service.get_review_by_id(review_id)
     
-    # Add customer username to response
+    # Build response with customer username from relationship
     response = ReviewResponse.model_validate(review)
-    response.customer_username = review.customer.username
+    if review.customer:
+        response.customer_username = review.customer.username
     
     return response
 
@@ -86,7 +87,7 @@ def update_review(
     review_service = ReviewService(db)
     review = review_service.update_review(review_id, review_data, current_user.id)
     
-    # Add customer username to response
+    # Build response with customer username
     response = ReviewResponse.model_validate(review)
     response.customer_username = current_user.username
     
@@ -151,11 +152,12 @@ def get_product_reviews(
         sort_order=sort_order
     )
     
-    # Add customer usernames to responses
+    # Build responses with customer usernames
     result = []
     for review in reviews:
         response = ReviewResponse.model_validate(review)
-        response.customer_username = review.customer.username
+        if review.customer:
+            response.customer_username = review.customer.username
         result.append(response)
     
     return result
@@ -180,7 +182,7 @@ def get_my_reviews(
         limit=limit
     )
     
-    # Add customer username to responses
+    # Build responses with customer username
     result = []
     for review in reviews:
         response = ReviewResponse.model_validate(review)
@@ -209,11 +211,12 @@ def get_customer_reviews(
         limit=limit
     )
     
-    # Add customer username to responses
+    # Build responses with customer usernames
     result = []
     for review in reviews:
         response = ReviewResponse.model_validate(review)
-        response.customer_username = review.customer.username
+        if review.customer:
+            response.customer_username = review.customer.username
         result.append(response)
     
     return result
@@ -363,6 +366,7 @@ def get_my_review_for_product(
     if not review:
         return None
     
+    # Build response with customer username
     response = ReviewResponse.model_validate(review)
     response.customer_username = current_user.username
     
