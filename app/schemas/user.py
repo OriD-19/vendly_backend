@@ -53,6 +53,10 @@ class CustomerUpdate(UserUpdate):
 class CustomerResponse(UserResponse):
     phone: Optional[str] = None
     preferred_payment_method: Optional[PaymentMethod] = None
+    # Optional fields for store customer statistics
+    total_orders: Optional[int] = None
+    total_spent: Optional[float] = None
+    last_order_date: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

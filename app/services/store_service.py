@@ -512,7 +512,7 @@ class StoreService:
         skip: int = 0,
         limit: int = 100,
         include_order_stats: bool = False
-    ) -> List[Dict[str, Any]]:
+    ) -> List[User]:
         """
         Get all customers who have purchased from a specific store.
         
@@ -523,7 +523,7 @@ class StoreService:
             include_order_stats: If True, include order statistics for each customer
             
         Returns:
-            List of customers with optional order statistics
+            List of User objects (customers will have additional attributes if include_order_stats=True)
             
         Raises:
             HTTPException 404: If store not found
@@ -546,47 +546,32 @@ class StoreService:
         
         customers = customers_query.all()
         
-        if not include_order_stats:
-            return customers
-        
-        # If order stats are requested, add them to each customer
-        customers_with_stats = []
-        for customer in customers:
-            # Get order statistics for this customer at this store
-            order_stats = (
-                self.db.query(
-                    func.count(distinct(Order.id)).label('total_orders'),
-                    func.sum(Order.total_amount).label('total_spent'),
-                    func.max(Order.created_at).label('last_order_date')
+        # If order stats are requested, add them as attributes to each customer object
+        if include_order_stats:
+            for customer in customers:
+                # Get order statistics for this customer at this store
+                order_stats = (
+                    self.db.query(
+                        func.count(distinct(Order.id)).label('total_orders'),
+                        func.sum(Order.total_amount).label('total_spent'),
+                        func.max(Order.created_at).label('last_order_date')
+                    )
+                    .join(OrderProduct, Order.id == OrderProduct.order_id)
+                    .join(Product, OrderProduct.product_id == Product.id)
+                    .filter(
+                        Order.customer_id == customer.id,
+                        Product.store_id == store_id,
+                        Order.status != OrderStatus.CANCELED
+                    )
+                    .first()
                 )
-                .join(OrderProduct, Order.id == OrderProduct.order_id)
-                .join(Product, OrderProduct.product_id == Product.id)
-                .filter(
-                    Order.customer_id == customer.id,
-                    Product.store_id == store_id,
-                    Order.status != OrderStatus.CANCELED
-                )
-                .first()
-            )
-            
-            # Convert customer to dict and add stats
-            customer_dict = {
-                'id': customer.id,
-                'username': customer.username,
-                'email': customer.email,
-                'user_type': customer.user_type,
-                'created_at': customer.created_at,
-                'updated_at': customer.updated_at,
-                'phone': getattr(customer, 'phone', None),
-                'preferred_payment_method': getattr(customer, 'preferred_payment_method', None),
-                'total_orders': order_stats.total_orders or 0,
-                'total_spent': float(order_stats.total_spent) if order_stats.total_spent else 0.0,
-                'last_order_date': order_stats.last_order_date
-            }
-            
-            customers_with_stats.append(customer_dict)
+                
+                # Add stats as dynamic attributes to the customer object
+                customer.total_orders = order_stats.total_orders or 0
+                customer.total_spent = float(order_stats.total_spent) if order_stats.total_spent else 0.0
+                customer.last_order_date = order_stats.last_order_date
         
-        return customers_with_stats
+        return customers
 
     def get_store_showcase_images(self, store_id: int, limit: int = 6) -> List[str]:
         """
