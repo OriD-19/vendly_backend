@@ -70,3 +70,11 @@ class StoreReviewStats(BaseModel):
         ..., 
         description="Distribution of ratings across all products"
     )
+
+
+class StoreScoreResponse(BaseModel):
+    """Simple store score response for bulk queries"""
+    store_id: int
+    store_name: Optional[str] = Field(None, description="Name of the store")
+    average_rating: float = Field(..., description="Average rating across all products (0-5)")
+    total_reviews: int = Field(..., description="Total reviews across all products")
