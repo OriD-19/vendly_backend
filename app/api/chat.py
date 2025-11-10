@@ -309,6 +309,13 @@ async def websocket_chat_endpoint(
             "store_id": 1,
             "created_at": "2025-11-09T10:30:00",
             "message_type": "text",
+            "is_from_customer": true,
+            "status": "sent",
+            "read_at": null
+        }
+    }
+    ```
+            "message_type": "text",
             "is_from_customer": true
         }
     }
@@ -400,7 +407,8 @@ async def websocket_chat_endpoint(
                                 "created_at": db_message.created_at.isoformat(),
                                 "message_type": db_message.message_type.value,
                                 "is_from_customer": db_message.is_from_customer,
-                                "is_read": db_message.is_read
+                                "status": db_message.status.value,
+                                "read_at": db_message.read_at.isoformat() if db_message.read_at else None
                             }
                         },
                         current_user.id,
