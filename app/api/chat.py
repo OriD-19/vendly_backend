@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.chat_message import (
@@ -9,8 +9,12 @@ from app.schemas.chat_message import (
     MarkAsReadRequest
 )
 from app.services.chat_service import ChatService
-from app.utils.auth_dependencies import get_current_active_user
+from app.utils.auth_dependencies import get_current_active_user, get_websocket_user
 from app.models.user import User
+from app.websockets.chat_websocket import manager
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -236,3 +240,251 @@ def get_message(
         )
     
     return message
+
+
+# ========== WebSocket Real-Time Chat ==========
+
+@router.websocket("/ws/{store_id}")
+async def websocket_chat_endpoint(
+    websocket: WebSocket,
+    store_id: int,
+    token: Optional[str] = None
+):
+    """
+    WebSocket endpoint for real-time chat.
+    
+    **Authentication:**
+    Pass JWT token as query parameter: `ws://api.example.com/chat/ws/123?token=<your_jwt_token>`
+    
+    **Connection URL:**
+    ```
+    ws://localhost:8000/chat/ws/{store_id}?token=<jwt_token>
+    ```
+    
+    **Message Types (Client -> Server):**
+    
+    1. **Send Message:**
+    ```json
+    {
+        "type": "send_message",
+        "data": {
+            "content": "Hello, I have a question about this product",
+            "message_type": "text",
+            "is_from_customer": true,
+            "attachment_url": null
+        }
+    }
+    ```
+    
+    2. **Typing Indicator:**
+    ```json
+    {
+        "type": "typing",
+        "data": {
+            "is_typing": true
+        }
+    }
+    ```
+    
+    3. **Mark Messages as Read:**
+    ```json
+    {
+        "type": "mark_read",
+        "data": {
+            "message_ids": [1, 2, 3]
+        }
+    }
+    ```
+    
+    **Message Types (Server -> Client):**
+    
+    1. **New Message:**
+    ```json
+    {
+        "type": "new_message",
+        "data": {
+            "id": 123,
+            "content": "Hello!",
+            "sender_id": 456,
+            "store_id": 1,
+            "created_at": "2025-11-09T10:30:00",
+            "message_type": "text",
+            "is_from_customer": true
+        }
+    }
+    ```
+    
+    2. **Typing Indicator:**
+    ```json
+    {
+        "type": "typing",
+        "data": {
+            "user_id": 456,
+            "store_id": 1,
+            "is_typing": true
+        }
+    }
+    ```
+    
+    3. **User Status:**
+    ```json
+    {
+        "type": "user_status",
+        "data": {
+            "user_id": 456,
+            "is_online": true
+        }
+    }
+    ```
+    
+    4. **Read Receipt:**
+    ```json
+    {
+        "type": "read_receipt",
+        "data": {
+            "message_ids": [1, 2, 3],
+            "updated_count": 3
+        }
+    }
+    ```
+    
+    **Error Handling:**
+    - Connection closes with code 1008 if authentication fails
+    - Connection closes with code 1011 if server error occurs
+    """
+    # Get database session
+    db = next(get_db())
+    current_user: Optional[User] = None
+    
+    try:
+        # Authenticate user
+        current_user = await get_websocket_user(websocket, token, db)
+        
+        # Connect to chat
+        await manager.connect(websocket, current_user.id, store_id)
+        logger.info(f"User {current_user.id} connected to store {store_id} chat")
+        
+        chat_service = ChatService(db)
+        
+        # Main message loop
+        while True:
+            try:
+                # Receive message from WebSocket
+                data = await websocket.receive_json()
+                message_type = data.get("type")
+                
+                if message_type == "send_message":
+                    # Handle new message
+                    message_data = data.get("data", {})
+                    
+                    # Create message in database
+                    chat_message = ChatMessageCreate(
+                        content=message_data.get("content", ""),
+                        store_id=store_id,
+                        message_type=message_data.get("message_type", "text"),
+                        is_from_customer=message_data.get("is_from_customer", True),
+                        attachment_url=message_data.get("attachment_url")
+                    )
+                    
+                    db_message = chat_service.create_message(chat_message, current_user.id)
+                    
+                    # Broadcast to conversation participants
+                    await manager.broadcast_to_conversation(
+                        {
+                            "type": "new_message",
+                            "data": {
+                                "id": db_message.id,
+                                "content": db_message.content,
+                                "sender_id": db_message.sender_id,
+                                "store_id": db_message.store_id,
+                                "created_at": db_message.created_at.isoformat(),
+                                "message_type": db_message.message_type.value,
+                                "is_from_customer": db_message.is_from_customer,
+                                "is_read": db_message.is_read
+                            }
+                        },
+                        current_user.id,
+                        store_id
+                    )
+                    
+                    logger.info(f"Message {db_message.id} sent by user {current_user.id} to store {store_id}")
+                
+                elif message_type == "typing":
+                    # Handle typing indicator
+                    is_typing = data.get("data", {}).get("is_typing", False)
+                    await manager.broadcast_typing_indicator(
+                        current_user.id,
+                        store_id,
+                        is_typing
+                    )
+                    logger.debug(f"Typing indicator: user {current_user.id}, is_typing={is_typing}")
+                
+                elif message_type == "mark_read":
+                    # Handle read receipt
+                    message_ids = data.get("data", {}).get("message_ids", [])
+                    updated_count = chat_service.mark_as_read(message_ids, current_user.id)
+                    
+                    # Send confirmation back
+                    await manager.send_personal_message(
+                        {
+                            "type": "read_receipt",
+                            "data": {
+                                "message_ids": message_ids,
+                                "updated_count": updated_count
+                            }
+                        },
+                        current_user.id,
+                        store_id
+                    )
+                    logger.info(f"Marked {updated_count} messages as read for user {current_user.id}")
+                
+                else:
+                    # Unknown message type
+                    logger.warning(f"Unknown message type: {message_type}")
+                    await manager.send_personal_message(
+                        {
+                            "type": "error",
+                            "data": {
+                                "message": f"Unknown message type: {message_type}"
+                            }
+                        },
+                        current_user.id,
+                        store_id
+                    )
+            
+            except Exception as e:
+                logger.error(f"Error processing message: {str(e)}", exc_info=True)
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "data": {
+                            "message": f"Error processing message: {str(e)}"
+                        }
+                    },
+                    current_user.id,
+                    store_id
+                )
+    
+    except WebSocketDisconnect:
+        if current_user:
+            manager.disconnect(current_user.id, store_id)
+            await manager.broadcast_user_status(current_user.id, store_id, is_online=False)
+            logger.info(f"User {current_user.id} disconnected from store {store_id} chat")
+        else:
+            logger.info(f"Unauthenticated connection disconnected from store {store_id}")
+    
+    except HTTPException:
+        # Authentication failed, connection already closed
+        logger.warning(f"WebSocket authentication failed for store {store_id}")
+    
+    except Exception as e:
+        logger.error(f"WebSocket error: {str(e)}", exc_info=True)
+        if current_user:
+            manager.disconnect(current_user.id, store_id)
+        try:
+            await websocket.close(code=1011, reason="Internal server error")
+        except:
+            pass
+    
+    finally:
+        db.close()
