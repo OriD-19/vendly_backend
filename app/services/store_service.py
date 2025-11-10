@@ -1,10 +1,11 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, distinct
 from fastapi import HTTPException, status
 from app.models.store import Store
 from app.models.product import Product
 from app.models.user import User, UserType
+from app.models.order import Order, OrderProduct, OrderStatus
 from app.schemas.store import StoreCreate, StoreUpdate
 
 
@@ -504,6 +505,88 @@ class StoreService:
         
         count = query.scalar() or 0
         return count
+
+    def get_store_customers(
+        self,
+        store_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        include_order_stats: bool = False
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all customers who have purchased from a specific store.
+        
+        Args:
+            store_id: The ID of the store
+            skip: Pagination offset
+            limit: Maximum number of customers to return
+            include_order_stats: If True, include order statistics for each customer
+            
+        Returns:
+            List of customers with optional order statistics
+            
+        Raises:
+            HTTPException 404: If store not found
+        """
+        # Verify store exists
+        self.get_store_by_id(store_id)
+        
+        # Get distinct customers who have ordered from this store
+        customers_query = (
+            self.db.query(User)
+            .join(Order, User.id == Order.customer_id)
+            .join(OrderProduct, Order.id == OrderProduct.order_id)
+            .join(Product, OrderProduct.product_id == Product.id)
+            .filter(Product.store_id == store_id)
+            .distinct()
+            .order_by(User.username)
+            .offset(skip)
+            .limit(limit)
+        )
+        
+        customers = customers_query.all()
+        
+        if not include_order_stats:
+            return customers
+        
+        # If order stats are requested, add them to each customer
+        customers_with_stats = []
+        for customer in customers:
+            # Get order statistics for this customer at this store
+            order_stats = (
+                self.db.query(
+                    func.count(distinct(Order.id)).label('total_orders'),
+                    func.sum(Order.total_amount).label('total_spent'),
+                    func.max(Order.created_at).label('last_order_date')
+                )
+                .join(OrderProduct, Order.id == OrderProduct.order_id)
+                .join(Product, OrderProduct.product_id == Product.id)
+                .filter(
+                    Order.customer_id == customer.id,
+                    Product.store_id == store_id,
+                    Order.status != OrderStatus.CANCELED
+                )
+                .first()
+            )
+            
+            # Convert customer to dict and add stats
+            customer_dict = {
+                'id': customer.id,
+                'username': customer.username,
+                'email': customer.email,
+                'user_type': customer.user_type,
+                'created_at': customer.created_at,
+                'updated_at': customer.updated_at,
+                'phone': getattr(customer, 'phone', None),
+                'preferred_payment_method': getattr(customer, 'preferred_payment_method', None),
+                'total_orders': order_stats.total_orders or 0,
+                'total_spent': float(order_stats.total_spent) if order_stats.total_spent else 0.0,
+                'last_order_date': order_stats.last_order_date
+            }
+            
+            customers_with_stats.append(customer_dict)
+        
+        return customers_with_stats
 
     def get_store_showcase_images(self, store_id: int, limit: int = 6) -> List[str]:
         """

@@ -1,10 +1,11 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.schemas.store import StoreCreate, StoreUpdate, StoreResponse
 from app.schemas.product import ProductResponse
+from app.schemas.user import CustomerResponse
 from app.services.store_service import StoreService
 from app.utils.auth_dependencies import get_current_user
 
@@ -364,3 +365,46 @@ def get_store_product_count(
         "product_count": count,
         "active_only": active_only
     }
+
+
+@router.get(
+    "/{store_id}/customers",
+    response_model=List[CustomerResponse],
+    summary="Get store customers",
+    description="Get all customers who have purchased from a store. Requires authentication."
+)
+def get_store_customers(
+    store_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
+    include_order_stats: bool = Query(False, description="Include order statistics for each customer"),
+    current_user: User = Depends(get_current_user),
+    store_service: StoreService = Depends(get_store_service)
+):
+    """
+    Get all customers who have made purchases from a specific store.
+    
+    **Requires authentication.**
+    
+    Query Parameters:
+    - `skip`: Pagination offset (default: 0)
+    - `limit`: Maximum results (default: 100, max: 200)
+    - `include_order_stats`: Include order count and total spent per customer (default: false)
+    
+    Returns a list of customers with their basic information.
+    If `include_order_stats` is true, also includes:
+    - `total_orders`: Number of orders placed
+    - `total_spent`: Total amount spent at the store
+    - `last_order_date`: Date of most recent order
+    
+    Example:
+    ```
+    GET /stores/1/customers?skip=0&limit=50&include_order_stats=true
+    ```
+    """
+    return store_service.get_store_customers(
+        store_id=store_id,
+        skip=skip,
+        limit=limit,
+        include_order_stats=include_order_stats
+    )
