@@ -40,10 +40,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-app.add_middleware(ErrorHandlingMiddleware)
-setup_cors(app)
-app.add_middleware(AuthMiddleware)
 app.add_middleware(LoggingMiddleware)
+app.add_middleware(AuthMiddleware)
+app.add_middleware(ErrorHandlingMiddleware)
+setup_cors(app)  # CORS should be added last so it executes first
 
 logger.info("Middlewares configured successfully")
 
