@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, func, case
 from fastapi import HTTPException, status
 from app.models.order import Order, OrderProduct, OrderStatus
@@ -111,7 +111,12 @@ class OrderService:
     
     def get_order_by_id(self, order_id: int) -> Order:
         """Get a single order by ID."""
-        order = self.db.query(Order).filter(Order.id == order_id).first()
+        order = (
+            self.db.query(Order)
+            .options(joinedload(Order.customer))
+            .filter(Order.id == order_id)
+            .first()
+        )
         
         if not order:
             raise HTTPException(
@@ -123,7 +128,12 @@ class OrderService:
     
     def get_order_by_number(self, order_number: str) -> Order:
         """Get a single order by order number."""
-        order = self.db.query(Order).filter(Order.order_number == order_number).first()
+        order = (
+            self.db.query(Order)
+            .options(joinedload(Order.customer))
+            .filter(Order.order_number == order_number)
+            .first()
+        )
         
         if not order:
             raise HTTPException(
@@ -144,7 +154,7 @@ class OrderService:
         """
         Get all orders with optional filtering.
         """
-        query = self.db.query(Order)
+        query = self.db.query(Order).options(joinedload(Order.customer))
         
         if status:
             query = query.filter(Order.status == status)
@@ -1252,6 +1262,7 @@ class OrderService:
         """Get all orders for a specific customer."""
         orders = (
             self.db.query(Order)
+            .options(joinedload(Order.customer))
             .filter(Order.customer_id == customer_id)
             .order_by(Order.created_at.desc())
             .offset(skip)

@@ -1,7 +1,21 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from app.models.order import OrderStatus
+from app.models.user import UserType
+
+
+# ========== Customer Info Schema ==========
+
+class CustomerInfo(BaseModel):
+    """Simplified customer information for order responses."""
+    id: int
+    username: str
+    email: EmailStr
+    user_type: UserType
+    phone: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ========== Order Product Schemas ==========
@@ -55,6 +69,7 @@ class OrderResponse(OrderBase):
     id: int
     order_number: str
     customer_id: int
+    customer: Optional[CustomerInfo] = None
     total_amount: float
     status: OrderStatus
     created_at: datetime
