@@ -18,6 +18,33 @@ class CustomerInfo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ========== Product Info Schema ==========
+
+class ProductImageInfo(BaseModel):
+    """Simplified product image information for order responses."""
+    id: int
+    image_url: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProductInfo(BaseModel):
+    """Simplified product information for order responses."""
+    id: int
+    name: str
+    short_description: Optional[str] = None
+    price: float
+    discount_price: Optional[float] = None
+    discount_end_date: Optional[datetime] = None
+    stock: int
+    is_active: bool
+    store_id: int
+    category_id: int
+    images: List[ProductImageInfo] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # ========== Order Product Schemas ==========
 
 class OrderProductBase(BaseModel):
@@ -40,6 +67,7 @@ class OrderProductUpdate(BaseModel):
 class OrderProductResponse(OrderProductBase):
     id: int
     order_id: int
+    product: Optional[ProductInfo] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, func, case
 from fastapi import HTTPException, status
 from app.models.order import Order, OrderProduct, OrderStatus
-from app.models.product import Product
+from app.models.product import Product, ProductImage
 from app.models.user import User
 from app.schemas.order import OrderCreate, OrderUpdate
 import random
@@ -113,7 +113,10 @@ class OrderService:
         """Get a single order by ID."""
         order = (
             self.db.query(Order)
-            .options(joinedload(Order.customer))
+            .options(
+                joinedload(Order.customer),
+                joinedload(Order.products).joinedload(OrderProduct.product).joinedload(Product.images)
+            )
             .filter(Order.id == order_id)
             .first()
         )
@@ -130,7 +133,10 @@ class OrderService:
         """Get a single order by order number."""
         order = (
             self.db.query(Order)
-            .options(joinedload(Order.customer))
+            .options(
+                joinedload(Order.customer),
+                joinedload(Order.products).joinedload(OrderProduct.product).joinedload(Product.images)
+            )
             .filter(Order.order_number == order_number)
             .first()
         )
@@ -154,7 +160,10 @@ class OrderService:
         """
         Get all orders with optional filtering.
         """
-        query = self.db.query(Order).options(joinedload(Order.customer))
+        query = self.db.query(Order).options(
+            joinedload(Order.customer),
+            joinedload(Order.products).joinedload(OrderProduct.product).joinedload(Product.images)
+        )
         
         if status:
             query = query.filter(Order.status == status)
@@ -1262,7 +1271,10 @@ class OrderService:
         """Get all orders for a specific customer."""
         orders = (
             self.db.query(Order)
-            .options(joinedload(Order.customer))
+            .options(
+                joinedload(Order.customer),
+                joinedload(Order.products).joinedload(OrderProduct.product).joinedload(Product.images)
+            )
             .filter(Order.customer_id == customer_id)
             .order_by(Order.created_at.desc())
             .offset(skip)
