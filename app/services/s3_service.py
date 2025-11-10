@@ -165,8 +165,10 @@ class S3Service:
             else:
                 s3_key = f"{self.product_images_folder}/{unique_filename}"
             
-            # IMPORTANT: Ensure file pointer is at the beginning
+            # CRITICAL: Read file content into memory to avoid "closed file" errors
+            # FastAPI's UploadFile can close the underlying file handle unexpectedly
             file.file.seek(0)
+            file_content = file.file.read()
             
             # Prepare upload arguments
             extra_args = {
@@ -176,23 +178,22 @@ class S3Service:
             # Try with ACL first, fallback without ACL if bucket doesn't allow it
             try:
                 extra_args['ACL'] = 'public-read'
-                self.s3_client.upload_fileobj(
-                    file.file,
-                    self.bucket_name,
-                    s3_key,
-                    ExtraArgs=extra_args
+                self.s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=s3_key,
+                    Body=file_content,
+                    **extra_args
                 )
             except ClientError as acl_error:
                 # If ACL fails, try without it (bucket might have public access via policy)
                 if 'AccessControlListNotSupported' in str(acl_error):
                     logger.warning(f"ACL not supported for bucket {self.bucket_name}, uploading without ACL")
-                    file.file.seek(0)  # Reset pointer again
                     del extra_args['ACL']
-                    self.s3_client.upload_fileobj(
-                        file.file,
-                        self.bucket_name,
-                        s3_key,
-                        ExtraArgs=extra_args
+                    self.s3_client.put_object(
+                        Bucket=self.bucket_name,
+                        Key=s3_key,
+                        Body=file_content,
+                        **extra_args
                     )
                 else:
                     raise  # Re-raise if it's a different ACL error
