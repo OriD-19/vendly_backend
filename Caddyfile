@@ -30,39 +30,33 @@
     }
 }
 
-# Production domain
-api.lacuponera.store {
-    # Reverse proxy to FastAPI
-    reverse_proxy localhost:8000 {
-        # Preserve the original scheme (HTTPS)
-        header_up X-Forwarded-Proto {scheme}
-        header_up X-Forwarded-Host {host}
-        header_up X-Real-IP {remote}
-    }
-
-    # Enable compression
-    encode gzip
-    
-    # Automatic HTTPS with Let's Encrypt
-    # tls will be automatic with Caddy
-    
-    # Security headers
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        X-XSS-Protection "1; mode=block"
-        Referrer-Policy "strict-origin-when-cross-origin"
-    }
-    
-    # Logs
-    log {
-        output stdout
-        format console
-    }
-}
-
-# Force HTTP to HTTPS redirect
-http://api.lacuponera.store {
-    redir https://api.lacuponera.store{uri} permanent
-}
+# Production domain (uncomment and modify for production with your domain)
+# api.yourdomain.com {
+#     # Reverse proxy to FastAPI
+#     reverse_proxy api:8000
+# 
+#     # Enable compression
+#     encode gzip
+#     
+#     # Automatic HTTPS with Let's Encrypt
+#     tls your-email@example.com
+#     
+#     # Security headers
+#     header {
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+#         X-Content-Type-Options "nosniff"
+#         X-Frame-Options "DENY"
+#         X-XSS-Protection "1; mode=block"
+#         Referrer-Policy "strict-origin-when-cross-origin"
+#     }
+#     
+#     # Logs
+#     log {
+#         output file /data/logs/access.log {
+#             roll_size 100mb
+#             roll_keep 5
+#             roll_keep_for 720h
+#         }
+#         format json
+#     }
+# }
