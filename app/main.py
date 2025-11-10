@@ -37,7 +37,14 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Vendly API",
     description="E-commerce platform API with JWT authentication",
-    version="1.0.0"
+    version="1.0.0",
+    # Prevent automatic trailing slash redirects that break HTTPS
+    redirect_slashes=False,
+    # Configure servers for proper URL generation
+    servers=[
+        {"url": "https://api.lacuponera.store", "description": "Production"},
+        {"url": "http://localhost:8000", "description": "Development"}
+    ]
 )
 
 app.add_middleware(LoggingMiddleware)
