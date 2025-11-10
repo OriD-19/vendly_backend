@@ -20,14 +20,17 @@ if is_sqlite:
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 else:
     # PostgreSQL-specific configuration for Supabase
+    # CRITICAL: Supabase has strict connection limits (especially in Session mode)
+    # Using NullPool to prevent connection pool exhaustion
+    engine_kwargs["poolclass"] = pool.NullPool  # No connection pooling - create/close per request
     engine_kwargs["pool_pre_ping"] = True  # Verify connections before using them
-    engine_kwargs["pool_size"] = 5  # Smaller pool size for Supabase free tier
-    engine_kwargs["max_overflow"] = 10  # Max additional connections (total: 15)
-    engine_kwargs["pool_recycle"] = 300  # Recycle connections after 5 minutes (Supabase timeout)
-    engine_kwargs["pool_timeout"] = 30  # Wait up to 30 seconds for a connection
-    # Use NullPool for WebSocket-heavy applications to prevent connection leaks
-    # Uncomment the line below if you continue having connection issues:
-    # engine_kwargs["poolclass"] = pool.NullPool
+    
+    # Alternative: Use connection pooling (comment out NullPool above and uncomment below)
+    # Only use this if you have a paid Supabase plan with higher connection limits
+    # engine_kwargs["pool_size"] = 2  # Very small pool for free tier
+    # engine_kwargs["max_overflow"] = 3  # Max additional connections (total: 5)
+    # engine_kwargs["pool_recycle"] = 300  # Recycle connections after 5 minutes
+    # engine_kwargs["pool_timeout"] = 30  # Wait up to 30 seconds for a connection
 
 engine = create_engine(Config.DATABASE_URL, **engine_kwargs)
 

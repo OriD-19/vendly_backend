@@ -118,43 +118,73 @@ jobs:
             # Navigate to application directory
             cd /home/ubuntu/vendly || cd ~/vendly
             
-            # Pull latest code
+            # Pull latest code first (includes pre-deploy script)
             echo "📥 Pulling latest code..."
             git pull origin master || git pull origin main
             
+            # Make scripts executable
+            chmod +x scripts/*.sh 2>/dev/null || true
+            
+            # Run pre-deployment cleanup
+            echo ""
+            echo "🧹 Running pre-deployment cleanup..."
+            ./scripts/pre_deploy.sh || echo "⚠️  Pre-deploy script not found, continuing..."
+            
             # Pull latest Docker image
+            echo ""
             echo "🐳 Pulling latest Docker image..."
             docker pull $DOCKER_IMAGE:latest
             
-            # Stop and remove old containers
-            echo "🛑 Stopping old containers..."
-            docker-compose down || true
-            
-            # Start new containers
+            # Start new containers with proper startup order
+            echo ""
             echo "▶️  Starting new containers..."
-            docker-compose up -d --build
+            docker-compose up -d --remove-orphans
             
             # Wait for services to be healthy
+            echo ""
             echo "⏳ Waiting for services to start..."
-            sleep 15
+            sleep 20
             
-            # Check health
-            echo "🏥 Checking health..."
+            # Check API health with retries
+            echo ""
+            echo "🏥 Checking API health..."
+            for i in {1..10}; do
+              if curl -f http://localhost:8000/ > /dev/null 2>&1; then
+                echo "✅ API health check passed!"
+                break
+              else
+                echo "⏳ Attempt $i/10: API not ready yet, waiting..."
+                sleep 3
+              fi
+            done
+            
+            # Check Caddy health
+            echo ""
+            echo "🏥 Checking Caddy health..."
             if curl -f http://localhost/ > /dev/null 2>&1; then
-                echo "✅ Health check passed!"
+                echo "✅ Caddy health check passed!"
             else
-                echo "⚠️  Warning: Health check failed, checking logs..."
-                docker-compose logs --tail=50 api
+                echo "⚠️  Warning: Caddy health check failed, checking logs..."
+                docker-compose logs --tail=30 caddy
+                docker-compose logs --tail=30 api
             fi
             
             # Clean up old images
-            echo "🧹 Cleaning up old images..."
+            echo ""
+            echo "🧹 Cleaning up old Docker images..."
             docker image prune -f
             
-            # Show status
-            echo "📊 Container status:"
+            # Show final status
+            echo ""
+            echo "📊 Final container status:"
             docker-compose ps
             
+            # Show resource usage
+            echo ""
+            echo "💾 Resource usage:"
+            docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}" 2>/dev/null || echo "Could not get stats"
+            
+            echo ""
             echo "✨ Deployment completed successfully!"
 
       - name: External Health Check
