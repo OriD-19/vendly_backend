@@ -84,6 +84,7 @@ def get_order_by_number(
 
 
 @router.get("/", response_model=List[OrderResponse])
+@router.get("", response_model=List[OrderResponse])  # Handle both /orders and /orders/
 def get_orders(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
