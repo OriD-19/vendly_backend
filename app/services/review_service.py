@@ -6,7 +6,7 @@ from app.models.review import Review
 from app.models.product import Product
 from app.models.user import User
 from app.models.store import Store
-from app.schemas.review import ReviewCreate, ReviewUpdate, ProductReviewStats, StoreReviewStats
+from app.schemas.review import ReviewCreate, ReviewUpdate, ProductReviewStats, StoreReviewStats, StoreScoreResponse
 
 
 class ReviewService:
@@ -415,3 +415,58 @@ class ReviewService:
         """
         stats = self.get_store_review_stats(store_id)
         return stats.average_rating
+
+    def get_all_stores_scores(
+        self,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[StoreScoreResponse]:
+        """
+        Get average scores for multiple stores with pagination.
+        
+        Args:
+            skip: Number of records to skip (pagination)
+            limit: Maximum number of records to return
+            
+        Returns:
+            List of StoreScoreResponse objects with store scores
+        """
+        # Get all stores with pagination
+        stores = (
+            self.db.query(Store)
+            .order_by(Store.id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        
+        results = []
+        
+        for store in stores:
+            # Get all reviews for products in this store
+            reviews = (
+                self.db.query(Review)
+                .join(Product, Review.product_id == Product.id)
+                .filter(Product.store_id == store.id)
+                .all()
+            )
+            
+            # Calculate average rating
+            if reviews:
+                total_reviews = len(reviews)
+                ratings = [review.rating for review in reviews]
+                average_rating = sum(ratings) / total_reviews
+            else:
+                total_reviews = 0
+                average_rating = 0.0
+            
+            results.append(
+                StoreScoreResponse(
+                    store_id=store.id,
+                    store_name=store.name,
+                    average_rating=round(average_rating, 2),
+                    total_reviews=total_reviews
+                )
+            )
+        
+        return results

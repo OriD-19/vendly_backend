@@ -7,7 +7,8 @@ from app.schemas.review import (
     ReviewUpdate, 
     ReviewResponse, 
     ProductReviewStats,
-    StoreReviewStats
+    StoreReviewStats,
+    StoreScoreResponse
 )
 from app.services.review_service import ReviewService
 from app.utils.auth_dependencies import get_current_active_user
@@ -47,73 +48,7 @@ def create_review(
     return response
 
 
-@router.get("/{review_id}", response_model=ReviewResponse)
-def get_review(
-    review_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Get a single review by ID.
-    
-    **Public endpoint** - no authentication required.
-    """
-    review_service = ReviewService(db)
-    review = review_service.get_review_by_id(review_id)
-    
-    # Build response with customer username from relationship
-    response = ReviewResponse.model_validate(review)
-    if review.customer:
-        response.customer_username = review.customer.username
-    
-    return response
-
-
-@router.put("/{review_id}", response_model=ReviewResponse)
-def update_review(
-    review_id: int,
-    review_data: ReviewUpdate,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Update an existing review.
-    
-    **Requires authentication** (must be the review owner).
-    
-    **Rules:**
-    - Only the customer who created the review can update it
-    - Can update rating, comment, or both
-    """
-    review_service = ReviewService(db)
-    review = review_service.update_review(review_id, review_data, current_user.id)
-    
-    # Build response with customer username
-    response = ReviewResponse.model_validate(review)
-    response.customer_username = current_user.username
-    
-    return response
-
-
-@router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_review(
-    review_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Delete a review.
-    
-    **Requires authentication** (must be the review owner).
-    
-    **Rules:**
-    - Only the customer who created the review can delete it
-    """
-    review_service = ReviewService(db)
-    review_service.delete_review(review_id, current_user.id)
-    return None
-
-
-# ========== Query Endpoints ==========
+# ========== Query Endpoints (Specific routes BEFORE parametric routes) ==========
 
 @router.get("/product/{product_id}", response_model=List[ReviewResponse])
 def get_product_reviews(
@@ -281,6 +216,53 @@ def get_product_overall_score(
     }
 
 
+@router.get("/stores/scores", response_model=List[StoreScoreResponse])
+def get_all_stores_scores(
+    skip: int = Query(0, ge=0, description="Number of stores to skip (pagination)"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of stores to return"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get average scores for multiple stores with pagination.
+    
+    **Public endpoint** - no authentication required.
+    
+    **Query Parameters:**
+    - `skip`: Pagination offset (default: 0)
+    - `limit`: Max results (default: 100, max: 500)
+    
+    **Returns:**
+    List of stores with their average ratings and total review counts.
+    
+    **Example Response:**
+    ```json
+    [
+        {
+            "store_id": 1,
+            "store_name": "Tech Store",
+            "average_rating": 4.35,
+            "total_reviews": 150
+        },
+        {
+            "store_id": 2,
+            "store_name": "Fashion Outlet",
+            "average_rating": 4.82,
+            "total_reviews": 87
+        }
+    ]
+    ```
+    
+    **Use Cases:**
+    - Display store rankings/leaderboards
+    - Browse stores by rating
+    - Compare multiple stores
+    - Marketplace overview pages
+    """
+    review_service = ReviewService(db)
+    scores = review_service.get_all_stores_scores(skip=skip, limit=limit)
+    return scores
+
+
 @router.get("/store/{store_id}/stats", response_model=StoreReviewStats)
 def get_store_review_stats(
     store_id: int,
@@ -371,3 +353,71 @@ def get_my_review_for_product(
     response.customer_username = current_user.username
     
     return response
+
+
+# ========== Parametric CRUD Endpoints (Must be LAST to avoid conflicts) ==========
+
+@router.get("/{review_id}", response_model=ReviewResponse)
+def get_review(
+    review_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get a single review by ID.
+    
+    **Public endpoint** - no authentication required.
+    """
+    review_service = ReviewService(db)
+    review = review_service.get_review_by_id(review_id)
+    
+    # Build response with customer username from relationship
+    response = ReviewResponse.model_validate(review)
+    if review.customer:
+        response.customer_username = review.customer.username
+    
+    return response
+
+
+@router.put("/{review_id}", response_model=ReviewResponse)
+def update_review(
+    review_id: int,
+    review_data: ReviewUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update an existing review.
+    
+    **Requires authentication** (must be the review owner).
+    
+    **Rules:**
+    - Only the customer who created the review can update it
+    - Can update rating, comment, or both
+    """
+    review_service = ReviewService(db)
+    review = review_service.update_review(review_id, review_data, current_user.id)
+    
+    # Build response with customer username
+    response = ReviewResponse.model_validate(review)
+    response.customer_username = current_user.username
+    
+    return response
+
+
+@router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_review(
+    review_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a review.
+    
+    **Requires authentication** (must be the review owner).
+    
+    **Rules:**
+    - Only the customer who created the review can delete it
+    """
+    review_service = ReviewService(db)
+    review_service.delete_review(review_id, current_user.id)
+    return None
